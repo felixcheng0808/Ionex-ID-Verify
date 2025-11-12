@@ -605,16 +605,30 @@
             }
         });
 
-        // 駕照 URL 輸入監聽
+        // 駕照 URL 輸入監聽 (支援多種事件以相容手機瀏覽器)
         const drivingLicenseUrlInput = document.getElementById('drivingLicenseUrlInput');
-        drivingLicenseUrlInput.addEventListener('input', () => {
-            updateSubmitButton();
-            if (drivingLicenseUrlInput.value.trim()) {
-                loadDrivingLicensePreview(drivingLicenseUrlInput.value.trim());
-            } else {
-                drivingLicensePreview.classList.remove('active');
-            }
-        });
+        if (drivingLicenseUrlInput) {
+            const handleDrivingLicenseInput = () => {
+                updateSubmitButton();
+                const url = drivingLicenseUrlInput.value.trim();
+                console.log('駕照 URL 輸入:', url);
+                if (url) {
+                    loadDrivingLicensePreview(url);
+                } else {
+                    drivingLicensePreview.classList.remove('active');
+                }
+            };
+
+            // 監聽多種事件以確保手機瀏覽器相容性
+            drivingLicenseUrlInput.addEventListener('input', handleDrivingLicenseInput);
+            drivingLicenseUrlInput.addEventListener('change', handleDrivingLicenseInput);
+            drivingLicenseUrlInput.addEventListener('paste', (e) => {
+                setTimeout(handleDrivingLicenseInput, 100); // 延遲執行以確保貼上的內容已經填入
+            });
+            drivingLicenseUrlInput.addEventListener('blur', handleDrivingLicenseInput);
+        } else {
+            console.error('找不到 drivingLicenseUrlInput 元素');
+        }
 
         urlExamples.forEach(example => {
             example.addEventListener('click', () => {
