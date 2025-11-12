@@ -221,11 +221,19 @@
             cursor: pointer;
             transition: transform 0.2s;
             margin-bottom: 10px;
+            /* 手機觸控優化 */
+            -webkit-tap-highlight-color: rgba(102, 126, 234, 0.3);
+            touch-action: manipulation;
+            user-select: none;
         }
 
         button:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active:not(:disabled) {
+            transform: scale(0.98);
         }
 
         button:disabled {
@@ -803,7 +811,18 @@
         }
 
         submitBtn.addEventListener('click', async () => {
+            console.log('開始辨識按鈕被點擊');
             const activeTab = document.querySelector('.tab.active').dataset.tab;
+            console.log('當前 Tab:', activeTab);
+
+            // 檢查是否勾選自動填寫
+            if (autoFillForm.checked) {
+                console.log('已勾選自動填寫');
+                // 在手機上顯示提示
+                if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                    alert('提示：自動填寫功能會在伺服器端執行,不會在您的手機上打開瀏覽器。如需手動填寫,請取消勾選「啟用自動填寫」選項。');
+                }
+            }
 
             if (activeTab === 'upload') {
                 await submitUpload();
@@ -846,13 +865,18 @@
 
         async function submitUrl() {
             const url = urlInput.value.trim();
-            if (!url) return;
+            if (!url) {
+                console.log('URL 為空,無法提交');
+                return;
+            }
 
+            console.log('開始提交 URL:', url);
             submitBtn.disabled = true;
             loading.classList.add('active');
             result.style.display = 'none';
 
             try {
+                console.log('發送 API 請求...');
                 const response = await fetch('/api/verify/url', {
                     method: 'POST',
                     headers: {
@@ -865,10 +889,13 @@
                     })
                 });
 
+                console.log('API 回應狀態:', response.status);
                 const data = await response.json();
+                console.log('API 回應資料:', data);
                 displayResult(data);
 
             } catch (error) {
+                console.error('提交失敗:', error);
                 displayResult({
                     success: false,
                     error: error.message || '網路錯誤'
@@ -876,6 +903,7 @@
             } finally {
                 loading.classList.remove('active');
                 submitBtn.disabled = false;
+                console.log('請求完成');
             }
         }
 
