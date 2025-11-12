@@ -851,6 +851,23 @@
                         </div>
                     </div>
                 `;
+
+                // 如果是手機瀏覽器，新增開啟監理所網站按鈕
+                if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                    html += `
+                        <div style="margin-top: 20px; text-align: center;">
+                            <button onclick="window.open('https://www.mvdis.gov.tw/m3-emv-vil/vil/opendata', '_blank')"
+                                    style="width: 100%; padding: 15px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+                                           color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold;
+                                           cursor: pointer; box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);">
+                                🌐 開啟監理所網站
+                            </button>
+                            <p style="color: #666; font-size: 13px; margin-top: 10px;">
+                                💡 提示：使用上方複製按鈕複製身分證字號和生日後，點此開啟監理所網站手動填寫
+                            </p>
+                        </div>
+                    `;
+                }
             } else if (data.error) {
                 html += `
                     <div class="result-content">
