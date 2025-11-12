@@ -1,5 +1,18 @@
 [phases.setup]
-nixPkgs = ['nodejs-18_x', 'chromium', 'nss', 'freetype', 'harfbuzz', 'ca-certificates', 'fontconfig']
+nixPkgs = [
+  'nodejs-18_x',
+  'chromium',
+  'nss',
+  'freetype',
+  'harfbuzz',
+  'cacert',
+  'fontconfig',
+  'libGL',
+  'libgbm',
+  'alsa-lib',
+  'cups',
+  'gtk3'
+]
 
 [phases.install]
 cmds = ['npm ci']
