@@ -47,7 +47,9 @@ class OCRService {
         console.log('✓ Google Cloud Vision API 初始化完成');
       } else if (this.usePaddleOCR) {
         // 使用 PaddleOCR (Guten OCR)
-        const Ocr = require('@gutenye/ocr-node').default;
+        // 使用動態 import 以支援 ES Module
+        const ocrModule = await import('@gutenye/ocr-node');
+        const Ocr = ocrModule.default;
 
         console.log('正在初始化 PaddleOCR (Guten OCR)...');
         this.ocrEngine = await Ocr.create({
