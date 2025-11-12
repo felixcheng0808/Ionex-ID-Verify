@@ -1,6 +1,5 @@
 # 依賴套件
 node_modules/
-package-lock.json
 yarn.lock
 
 # 環境變數
