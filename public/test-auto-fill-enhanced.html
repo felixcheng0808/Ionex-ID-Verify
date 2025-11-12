@@ -376,6 +376,32 @@
             font-size: 12px;
             margin-bottom: 10px;
         }
+
+        .copy-btn {
+            margin-left: 10px;
+            padding: 4px 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: rgba(102, 126, 234, 0.3);
+        }
+
+        .copy-btn:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        .copy-btn:active {
+            transform: scale(0.95);
+        }
+
+        .copy-btn.copied {
+            background: #28a745;
+        }
     </style>
 </head>
 <body>
@@ -756,22 +782,56 @@
                             <div class="result-section-title">🪪 身分證辨識結果</div>
                 `;
 
+                // 轉換出生日期為 YYYMMDD 格式
+                let birthDateFormatted = data.data.birthDate;
+                console.log('原始出生日期:', data.data.birthDate);
+
+                if (data.data.birthDate) {
+                    // 格式1: "民國XX年XX月XX日" 或 "XX年XX月XX日"
+                    const match = data.data.birthDate.match(/(?:民國)?(\d+)年(\d+)月(\d+)日/);
+                    if (match) {
+                        const year = match[1].padStart(3, '0');
+                        const month = match[2].padStart(2, '0');
+                        const day = match[3].padStart(2, '0');
+                        birthDateFormatted = `${year}${month}${day}`;
+                        console.log('匹配格式1 (年月日) - 轉換後:', birthDateFormatted);
+                    } else {
+                        // 格式2: "XX.XX.XX" 或 "XX-XX-XX" 或 "XXXXXX"
+                        const dateMatch = data.data.birthDate.match(/(\d{2,3})[\.\-\/]?(\d{1,2})[\.\-\/]?(\d{1,2})/);
+                        if (dateMatch) {
+                            const year = dateMatch[1].padStart(3, '0');
+                            const month = dateMatch[2].padStart(2, '0');
+                            const day = dateMatch[3].padStart(2, '0');
+                            birthDateFormatted = `${year}${month}${day}`;
+                            console.log('匹配格式2 (數字) - 轉換後:', birthDateFormatted);
+                        } else {
+                            console.log('無法匹配日期格式，使用原始值');
+                        }
+                    }
+                }
+
+                console.log('最終顯示的出生日期:', birthDateFormatted);
+
                 // 顯示所有辨識到的資料
                 const fields = [
-                    { key: 'idNumber', label: '身分證字號' },
+                    { key: 'idNumber', label: '身分證字號', copyable: true },
                     { key: 'name', label: '姓名' },
                     { key: 'gender', label: '性別' },
-                    { key: 'birthDate', label: '出生日期' },
+                    { key: 'birthDate', label: '出生日期', copyable: true, displayValue: birthDateFormatted },
                     { key: 'issueDate', label: '發證日期' },
                     { key: 'issueLocation', label: '發證地點' }
                 ];
 
                 fields.forEach(field => {
                     if (data.data[field.key]) {
+                        const displayValue = field.displayValue || data.data[field.key];
+                        const copyValue = field.key === 'birthDate' ? birthDateFormatted : data.data[field.key];
+                        const copyButton = field.copyable ?
+                            `<button class="copy-btn" onclick="copyToClipboard('${copyValue}', this)">📋 複製</button>` : '';
                         html += `
                             <div class="result-item">
                                 <div class="result-label">${field.label}:</div>
-                                <div class="result-value">${data.data[field.key]}</div>
+                                <div class="result-value">${displayValue}${copyButton}</div>
                             </div>
                         `;
                     }
@@ -1114,6 +1174,52 @@
             }
 
             result.innerHTML = html;
+        }
+
+        // 複製到剪貼簿功能
+        function copyToClipboard(text, button) {
+            // 使用現代 Clipboard API
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    // 複製成功
+                    const originalText = button.textContent;
+                    button.textContent = '✓ 已複製';
+                    button.classList.add('copied');
+
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.classList.remove('copied');
+                    }, 2000);
+                }).catch(err => {
+                    console.error('複製失敗:', err);
+                    alert('複製失敗，請手動複製');
+                });
+            } else {
+                // 降級方案：使用舊的 execCommand 方法
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.select();
+
+                try {
+                    document.execCommand('copy');
+                    const originalText = button.textContent;
+                    button.textContent = '✓ 已複製';
+                    button.classList.add('copied');
+
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.classList.remove('copied');
+                    }, 2000);
+                } catch (err) {
+                    console.error('複製失敗:', err);
+                    alert('複製失敗，請手動複製');
+                } finally {
+                    document.body.removeChild(textArea);
+                }
+            }
         }
 
         // 頁面載入完成時執行
