@@ -14,7 +14,7 @@ nixPkgs = [
 ]
 
 [phases.install]
-cmds = ['npm ci']
+cmds = ['npm install']
 
 [phases.build]
 cmds = ['echo "Build phase completed"']
