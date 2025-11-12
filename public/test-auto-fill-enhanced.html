@@ -431,6 +431,9 @@
                 </div>
             </div>
 
+            <!-- 身分證辨識結果 -->
+            <div class="result" id="idCardResult" style="margin-top: 20px;"></div>
+
             <div class="preview" id="urlPreview">
                 <img id="urlPreviewImage" src="" alt="預覽">
                 <div class="preview-info" id="urlPreviewInfo"></div>
@@ -604,14 +607,27 @@
         const urlPreviewInfo = document.getElementById('urlPreviewInfo');
         const urlExamples = document.querySelectorAll('.url-example');
 
-        urlInput.addEventListener('input', () => {
-            updateSubmitButton();
-            if (urlInput.value.trim()) {
-                loadUrlPreview(urlInput.value.trim());
-            } else {
-                urlPreview.classList.remove('active');
-            }
-        });
+        // 身分證 URL 輸入監聽 (支援多種事件以相容手機瀏覽器)
+        if (urlInput) {
+            const handleIdCardInput = () => {
+                updateSubmitButton();
+                const url = urlInput.value.trim();
+                console.log('身分證 URL 輸入:', url);
+                if (url) {
+                    loadUrlPreview(url);
+                } else {
+                    urlPreview.classList.remove('active');
+                }
+            };
+
+            // 監聽多種事件以確保手機瀏覽器相容性
+            urlInput.addEventListener('input', handleIdCardInput);
+            urlInput.addEventListener('change', handleIdCardInput);
+            urlInput.addEventListener('paste', (e) => {
+                setTimeout(handleIdCardInput, 100); // 延遲執行以確保貼上的內容已經填入
+            });
+            urlInput.addEventListener('blur', handleIdCardInput);
+        }
 
         // 駕照 URL 輸入監聽 (支援多種事件以相容手機瀏覽器)
         const drivingLicenseUrlInput = document.getElementById('drivingLicenseUrlInput');
@@ -652,6 +668,8 @@
             urlPreviewImage.onload = () => {
                 urlPreview.classList.add('active');
                 urlPreviewInfo.textContent = '身分證';
+                // 自動辨識身分證
+                analyzeIDCard(url);
             };
             urlPreviewImage.onerror = () => {
                 urlPreview.classList.remove('active');
@@ -676,6 +694,113 @@
                 drivingLicensePreview.classList.remove('active');
                 drivingLicensePreviewInfo.textContent = '無法載入駕照圖片預覽';
             };
+        }
+
+        // 自動辨識身分證
+        async function analyzeIDCard(imageUrl) {
+            const idCardResult = document.getElementById('idCardResult');
+
+            // 顯示載入中
+            idCardResult.style.display = 'block';
+            idCardResult.className = 'result';
+            idCardResult.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: #666;">
+                    <div class="spinner" style="margin: 0 auto 15px;"></div>
+                    <p>正在辨識身分證資料...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch('/api/verify/url', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        imageUrl: imageUrl,
+                        autoFillForm: false,
+                        keepBrowserAlive: false
+                    })
+                });
+
+                const data = await response.json();
+                displayIDCardResult(data);
+
+            } catch (error) {
+                idCardResult.className = 'result error';
+                idCardResult.innerHTML = `
+                    <div class="result-title error">✗ 身分證辨識失敗</div>
+                    <div class="result-content">
+                        <p style="color: #721c24;">${error.message || '網路錯誤'}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 顯示身分證辨識結果
+        function displayIDCardResult(data) {
+            const idCardResult = document.getElementById('idCardResult');
+            idCardResult.className = 'result';
+            idCardResult.classList.add(data.success ? 'success' : 'error');
+
+            let html = `
+                <div class="result-title ${data.success ? 'success' : 'error'}">
+                    ${data.success ? '✓' : '✗'} 身分證辨識${data.success ? '成功' : '失敗'}
+                </div>
+            `;
+
+            if (data.success && data.data) {
+                html += `
+                    <div class="result-content">
+                        <div class="result-section">
+                            <div class="result-section-title">🪪 身分證辨識結果</div>
+                `;
+
+                // 顯示所有辨識到的資料
+                const fields = [
+                    { key: 'idNumber', label: '身分證字號' },
+                    { key: 'name', label: '姓名' },
+                    { key: 'gender', label: '性別' },
+                    { key: 'birthDate', label: '出生日期' },
+                    { key: 'issueDate', label: '發證日期' },
+                    { key: 'issueLocation', label: '發證地點' }
+                ];
+
+                fields.forEach(field => {
+                    if (data.data[field.key]) {
+                        html += `
+                            <div class="result-item">
+                                <div class="result-label">${field.label}:</div>
+                                <div class="result-value">${data.data[field.key]}</div>
+                            </div>
+                        `;
+                    }
+                });
+
+                // 顯示原始文字 (如果有)
+                if (data.data.rawText) {
+                    html += `
+                        <div class="result-item" style="margin-top: 15px;">
+                            <div class="result-label">原始辨識文字:</div>
+                            <div class="result-value" style="white-space: pre-wrap; font-size: 12px; color: #666; max-height: 200px; overflow-y: auto;">${data.data.rawText}</div>
+                        </div>
+                    `;
+                }
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            } else if (data.error) {
+                html += `
+                    <div class="result-content">
+                        <p style="color: #721c24;">${data.error}</p>
+                    </div>
+                `;
+            }
+
+            idCardResult.innerHTML = html;
+            idCardResult.style.display = 'block';
         }
 
         // 自動辨識駕照
