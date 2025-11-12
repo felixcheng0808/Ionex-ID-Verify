@@ -58,9 +58,24 @@ class IDCardController {
       console.log('正在進行 OCR 辨識...');
       const ocrResult = await ocrService.recognizeText(processedFile);
 
-      // 5. 解析身分證資訊
-      console.log('正在解析身分證資訊...');
-      const parseResult = parserService.parseIDCard(ocrResult);
+      // 5. 判斷證件類型並解析
+      console.log('正在解析證件資訊...');
+      let parseResult;
+      const text = ocrResult.text || '';
+
+      // 判斷是否為駕照 (包含「駕照」、「駕駛執照」、「機車」等關鍵字)
+      const isDrivingLicense = text.includes('駕照') ||
+                               text.includes('駕駛執照') ||
+                               text.includes('交通部') ||
+                               /[A-Z]\d{2}\d{7,8}/.test(text); // 駕照號碼格式
+
+      if (isDrivingLicense) {
+        console.log('偵測到駕照,使用駕照解析器...');
+        parseResult = parserService.parseDrivingLicense(ocrResult);
+      } else {
+        console.log('使用身分證解析器...');
+        parseResult = parserService.parseIDCard(ocrResult);
+      }
 
       // 6. 驗證解析結果
       const validation = parserService.validateParseResult(parseResult);
@@ -164,9 +179,24 @@ class IDCardController {
       console.log('正在進行 OCR 辨識...');
       const ocrResult = await ocrService.recognizeText(processedFile);
 
-      // 4. 解析身分證資訊
-      console.log('正在解析身分證資訊...');
-      const parseResult = parserService.parseIDCard(ocrResult);
+      // 4. 判斷證件類型並解析
+      console.log('正在解析證件資訊...');
+      let parseResult;
+      const text = ocrResult.text || '';
+
+      // 判斷是否為駕照
+      const isDrivingLicense = text.includes('駕照') ||
+                               text.includes('駕駛執照') ||
+                               text.includes('交通部') ||
+                               /[A-Z]\d{2}\d{7,8}/.test(text);
+
+      if (isDrivingLicense) {
+        console.log('偵測到駕照,使用駕照解析器...');
+        parseResult = parserService.parseDrivingLicense(ocrResult);
+      } else {
+        console.log('使用身分證解析器...');
+        parseResult = parserService.parseIDCard(ocrResult);
+      }
 
       // 5. 驗證解析結果
       const validation = parserService.validateParseResult(parseResult);
@@ -309,9 +339,24 @@ class IDCardController {
       console.log('正在進行 OCR 辨識...');
       const ocrResult = await ocrService.recognizeText(processedFile);
 
-      // 5. 解析身分證資訊
-      console.log('正在解析身分證資訊...');
-      const parseResult = parserService.parseIDCard(ocrResult);
+      // 5. 判斷證件類型並解析
+      console.log('正在解析證件資訊...');
+      let parseResult;
+      const text = ocrResult.text || '';
+
+      // 判斷是否為駕照
+      const isDrivingLicense = text.includes('駕照') ||
+                               text.includes('駕駛執照') ||
+                               text.includes('交通部') ||
+                               /[A-Z]\d{2}\d{7,8}/.test(text);
+
+      if (isDrivingLicense) {
+        console.log('偵測到駕照,使用駕照解析器...');
+        parseResult = parserService.parseDrivingLicense(ocrResult);
+      } else {
+        console.log('使用身分證解析器...');
+        parseResult = parserService.parseIDCard(ocrResult);
+      }
 
       // 6. 驗證解析結果
       const validation = parserService.validateParseResult(parseResult);
@@ -409,9 +454,24 @@ class IDCardController {
       console.log('正在進行 OCR 辨識...');
       const ocrResult = await ocrService.recognizeText(processedFile);
 
-      // 4. 解析身分證資訊
-      console.log('正在解析身分證資訊...');
-      const parseResult = parserService.parseIDCard(ocrResult);
+      // 4. 判斷證件類型並解析
+      console.log('正在解析證件資訊...');
+      let parseResult;
+      const text = ocrResult.text || '';
+
+      // 判斷是否為駕照
+      const isDrivingLicense = text.includes('駕照') ||
+                               text.includes('駕駛執照') ||
+                               text.includes('交通部') ||
+                               /[A-Z]\d{2}\d{7,8}/.test(text);
+
+      if (isDrivingLicense) {
+        console.log('偵測到駕照,使用駕照解析器...');
+        parseResult = parserService.parseDrivingLicense(ocrResult);
+      } else {
+        console.log('使用身分證解析器...');
+        parseResult = parserService.parseIDCard(ocrResult);
+      }
 
       // 5. 驗證解析結果
       const validation = parserService.validateParseResult(parseResult);

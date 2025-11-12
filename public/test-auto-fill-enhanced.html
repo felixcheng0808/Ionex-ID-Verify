@@ -402,9 +402,16 @@
         <!-- URL Tab -->
         <div class="tab-content" id="url-tab">
             <div class="url-input-area">
+                <h3 style="color: #333; margin-bottom: 15px; font-size: 16px;">🪪 身分證圖片 URL</h3>
                 <div class="url-input-group">
                     <input type="text" id="urlInput" placeholder="請輸入身分證圖片的 URL (例如: https://example.com/id-card.jpg)">
                 </div>
+
+                <h3 style="color: #333; margin: 20px 0 15px 0; font-size: 16px;">🚗 駕照圖片 URL (選填)</h3>
+                <div class="url-input-group">
+                    <input type="text" id="drivingLicenseUrlInput" placeholder="請輸入駕照圖片的 URL (選填)">
+                </div>
+
                 <div class="url-examples">
                     <div class="url-examples-title">💡 範例 URL (點擊使用):</div>
                     <div class="url-example" data-url="https://ionexenergy-nex-cloud.s3.us-west-2.amazonaws.com/id-card-sample.jpg">
@@ -420,6 +427,14 @@
                 <img id="urlPreviewImage" src="" alt="預覽">
                 <div class="preview-info" id="urlPreviewInfo"></div>
             </div>
+
+            <div class="preview" id="drivingLicensePreview" style="margin-top: 20px;">
+                <img id="drivingLicensePreviewImage" src="" alt="駕照預覽">
+                <div class="preview-info" id="drivingLicensePreviewInfo"></div>
+            </div>
+
+            <!-- 駕照辨識結果 -->
+            <div class="result" id="drivingLicenseResult" style="margin-top: 20px;"></div>
         </div>
 
         <div class="options">
@@ -458,17 +473,24 @@
         function loadFromUrlParams() {
             const params = new URLSearchParams(window.location.search);
             const imageUrl = params.get('imageUrl');
+            const drivingLicenseUrl = params.get('drivingLicenseUrl');
             const userName = params.get('userName');
 
-            if (imageUrl) {
+            if (imageUrl || drivingLicenseUrl) {
                 // 切換到 URL tab
                 document.querySelector('[data-tab="url"]').click();
 
-                // 填入 URL
-                document.getElementById('urlInput').value = imageUrl;
+                // 填入身分證 URL
+                if (imageUrl) {
+                    document.getElementById('urlInput').value = imageUrl;
+                    loadUrlPreview(imageUrl);
+                }
 
-                // 觸發預覽
-                loadUrlPreview(imageUrl);
+                // 填入駕照 URL
+                if (drivingLicenseUrl) {
+                    document.getElementById('drivingLicenseUrlInput').value = drivingLicenseUrl;
+                    loadDrivingLicensePreview(drivingLicenseUrl);
+                }
 
                 // 更新提交按鈕
                 updateSubmitButton();
@@ -476,7 +498,7 @@
                 // 如果有使用者名稱,顯示訊息
                 if (userName) {
                     document.querySelector('.subtitle').textContent =
-                        `正在處理 ${userName} 的身分證 - 支援上傳圖片或提供 URL 進行辨識`;
+                        `正在處理 ${userName} 的證件 - 支援上傳圖片或提供 URL 進行辨識`;
                 }
             }
         }
@@ -567,6 +589,17 @@
             }
         });
 
+        // 駕照 URL 輸入監聽
+        const drivingLicenseUrlInput = document.getElementById('drivingLicenseUrlInput');
+        drivingLicenseUrlInput.addEventListener('input', () => {
+            updateSubmitButton();
+            if (drivingLicenseUrlInput.value.trim()) {
+                loadDrivingLicensePreview(drivingLicenseUrlInput.value.trim());
+            } else {
+                drivingLicensePreview.classList.remove('active');
+            }
+        });
+
         urlExamples.forEach(example => {
             example.addEventListener('click', () => {
                 const url = example.dataset.url;
@@ -580,12 +613,143 @@
             urlPreviewImage.src = url;
             urlPreviewImage.onload = () => {
                 urlPreview.classList.add('active');
-                urlPreviewInfo.textContent = `URL: ${url}`;
+                urlPreviewInfo.textContent = '身分證';
             };
             urlPreviewImage.onerror = () => {
                 urlPreview.classList.remove('active');
                 urlPreviewInfo.textContent = '無法載入圖片預覽';
             };
+        }
+
+        // 駕照預覽
+        const drivingLicensePreview = document.getElementById('drivingLicensePreview');
+        const drivingLicensePreviewImage = document.getElementById('drivingLicensePreviewImage');
+        const drivingLicensePreviewInfo = document.getElementById('drivingLicensePreviewInfo');
+
+        function loadDrivingLicensePreview(url) {
+            drivingLicensePreviewImage.src = url;
+            drivingLicensePreviewImage.onload = () => {
+                drivingLicensePreview.classList.add('active');
+                drivingLicensePreviewInfo.textContent = '駕照';
+                // 自動辨識駕照
+                analyzeDrivingLicense(url);
+            };
+            drivingLicensePreviewImage.onerror = () => {
+                drivingLicensePreview.classList.remove('active');
+                drivingLicensePreviewInfo.textContent = '無法載入駕照圖片預覽';
+            };
+        }
+
+        // 自動辨識駕照
+        async function analyzeDrivingLicense(imageUrl) {
+            const drivingLicenseResult = document.getElementById('drivingLicenseResult');
+
+            // 顯示載入中
+            drivingLicenseResult.style.display = 'block';
+            drivingLicenseResult.className = 'result';
+            drivingLicenseResult.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: #666;">
+                    <div class="spinner" style="margin: 0 auto 15px;"></div>
+                    <p>正在辨識駕照資料...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch('/api/verify/url', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        imageUrl: imageUrl,
+                        autoFillForm: false,
+                        keepBrowserAlive: false
+                    })
+                });
+
+                const data = await response.json();
+                displayDrivingLicenseResult(data);
+
+            } catch (error) {
+                drivingLicenseResult.className = 'result error';
+                drivingLicenseResult.innerHTML = `
+                    <div class="result-title error">✗ 駕照辨識失敗</div>
+                    <div class="result-content">
+                        <p style="color: #721c24;">${error.message || '網路錯誤'}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 顯示駕照辨識結果
+        function displayDrivingLicenseResult(data) {
+            const drivingLicenseResult = document.getElementById('drivingLicenseResult');
+            drivingLicenseResult.className = 'result';
+            drivingLicenseResult.classList.add(data.success ? 'success' : 'error');
+
+            let html = `
+                <div class="result-title ${data.success ? 'success' : 'error'}">
+                    ${data.success ? '✓' : '✗'} 駕照辨識${data.success ? '成功' : '失敗'}
+                </div>
+            `;
+
+            if (data.success && data.data) {
+                html += `
+                    <div class="result-content">
+                        <div class="result-section">
+                            <div class="result-section-title">🚗 駕照辨識結果</div>
+                `;
+
+                // 顯示所有辨識到的資料
+                const fields = [
+                    { key: 'idNumber', label: '身分證字號' },
+                    { key: 'name', label: '姓名' },
+                    { key: 'gender', label: '性別' },
+                    { key: 'birthDate', label: '出生日期' },
+                    { key: 'issueDate', label: '發證日期' },
+                    { key: 'issueLocation', label: '發證地點' },
+                    { key: 'licenseNumber', label: '駕照號碼' },
+                    { key: 'licenseType', label: '駕照種類' },
+                    { key: 'validFrom', label: '有效期開始' },
+                    { key: 'validTo', label: '有效期結束' },
+                    { key: 'address', label: '地址' }
+                ];
+
+                fields.forEach(field => {
+                    if (data.data[field.key]) {
+                        html += `
+                            <div class="result-item">
+                                <div class="result-label">${field.label}:</div>
+                                <div class="result-value">${data.data[field.key]}</div>
+                            </div>
+                        `;
+                    }
+                });
+
+                // 顯示原始文字 (如果有)
+                if (data.data.rawText) {
+                    html += `
+                        <div class="result-item" style="margin-top: 15px;">
+                            <div class="result-label">原始辨識文字:</div>
+                            <div class="result-value" style="white-space: pre-wrap; font-size: 12px; color: #666; max-height: 200px; overflow-y: auto;">${data.data.rawText}</div>
+                        </div>
+                    `;
+                }
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            } else if (data.error) {
+                html += `
+                    <div class="result-content">
+                        <p style="color: #721c24;">${data.error}</p>
+                    </div>
+                `;
+            }
+
+            drivingLicenseResult.innerHTML = html;
+            drivingLicenseResult.style.display = 'block';
         }
 
         // 提交功能

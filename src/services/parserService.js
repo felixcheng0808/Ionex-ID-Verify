@@ -367,6 +367,289 @@ class ParserService {
     result.formatted = dateStr;
     return result;
   }
+
+  /**
+   * 解析駕照資料
+   * @param {object} ocrResult - OCR 辨識結果
+   * @returns {object} 解析後的駕照資訊
+   */
+  parseDrivingLicense(ocrResult) {
+    const text = ocrResult.text || '';
+    const words = ocrResult.words || [];
+
+    console.log('解析駕照 OCR 文字:', text.substring(0, 200));
+
+    const result = {
+      success: false,
+      data: {
+        licenseNumber: null,
+        idNumber: null,
+        name: null,
+        birthDate: null,
+        issueDate: null,
+        licenseType: null,
+        address: null
+      },
+      confidence: ocrResult.confidence || 0,
+      rawText: text
+    };
+
+    try {
+      // 1. 提取駕照號碼 (格式: N12XXXXXXX 或類似)
+      result.data.licenseNumber = this.extractLicenseNumber(text);
+
+      // 2. 提取身分證字號
+      result.data.idNumber = this.extractIDNumber(text);
+
+      // 3. 提取姓名
+      result.data.name = this.extractDrivingLicenseName(text);
+
+      // 4. 提取出生日期
+      result.data.birthDate = this.extractBirthDate(text);
+
+      // 5. 提取發證日期
+      result.data.issueDate = this.extractIssueDate(text);
+
+      // 6. 提取駕照種類 (重點)
+      result.data.licenseType = this.extractLicenseType(text, words);
+
+      // 7. 提取地址
+      result.data.address = this.extractAddress(text);
+
+      // 判斷是否成功（至少要有駕照號碼或身分證字號）
+      result.success = result.data.licenseNumber !== null || result.data.idNumber !== null;
+
+      return result;
+    } catch (error) {
+      console.error('解析駕照資訊時發生錯誤:', error);
+      return result;
+    }
+  }
+
+  /**
+   * 提取駕照號碼
+   * @param {string} text - OCR 文字
+   * @returns {string|null}
+   */
+  extractLicenseNumber(text) {
+    // 駕照號碼格式: N12XXXXXXX (字母+數字)
+    const patterns = [
+      /([A-Z]\d{2}\d{7,8})/,
+      /駕照[\s]*號碼?[\s]*[：:]*[\s]*([A-Z]\d{2}\d{7,8})/,
+      /號[\s]*碼[\s]*([A-Z]\d{2}\d{7,8})/
+    ];
+
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * 提取駕照上的姓名
+   * @param {string} text - OCR 文字
+   * @returns {string|null}
+   */
+  extractDrivingLicenseName(text) {
+    // 駕照上的姓名通常在「姓名」或直接在身分證字號後
+    const namePatterns = [
+      /姓[\s]*名[\s]*[：:]*[\s]*([^\n\r]{2,4})/,
+      /[A-Z]\d{9}[\s\n]*([^\n\r]{2,4})/,  // 身分證字號後的名字
+      /號[\s]*碼[\s]*[A-Z]\d+[\s\n]+([^\n\r]{2,4})/
+    ];
+
+    for (const pattern of namePatterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        const name = match[1].trim();
+        if (/^[\u4e00-\u9fa5]{2,4}$/.test(name)) {
+          return name;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * 提取駕照種類 (重點強化)
+   * @param {string} text - OCR 文字
+   * @param {array} words - OCR 單字陣列
+   * @returns {string|null}
+   */
+  extractLicenseType(text, words = []) {
+    console.log('開始提取駕照種類...');
+    console.log('OCR 文字內容:', text);
+    console.log('Words 陣列長度:', words.length);
+
+    // 台灣駕照種類對照表
+    const licenseTypes = {
+      // 機車類
+      'A': '普通重型機車',
+      'A1': '大型重型機車',
+      'A2': '普通重型機車',
+      'A3': '輕型機車',
+      // 汽車類
+      'B': '普通小型車',
+      'C': '普通大貨車',
+      'D': '普通大客車',
+      'E': '普通聯結車',
+      // 特殊類
+      'F': '營業小客車',
+      '輕機': '輕型機車',
+      '普機': '普通重型機車',
+      '大機': '大型重型機車',
+      '普重': '普通重型機車',
+      '普小': '普通小型車',
+      '大貨': '普通大貨車',
+      '大客': '普通大客車'
+    };
+
+    const detectedTypes = [];
+
+    // 正規化文字(簡繁轉換)
+    const normalizedText = text
+      .replace(/车/g, '車')
+      .replace(/货/g, '貨')
+      .replace(/华/g, '華')
+      .replace(/发/g, '發');
+
+    console.log('正規化後文字:', normalizedText.substring(0, 150));
+
+    // 方法1: 尋找完整的駕照種類中文描述
+    const chinesePatterns = [
+      /普通重型機車/,
+      /大型重型機車/,
+      /輕型機車/,
+      /普通小型車/,
+      /普通大貨車/,
+      /普通大客車/,
+      /營業小客車/,
+      /普通聯結車/
+    ];
+
+    for (const pattern of chinesePatterns) {
+      const match = normalizedText.match(pattern);
+      if (match) {
+        console.log('✓ 找到駕照種類 (中文描述):', match[0]);
+        detectedTypes.push(match[0]);
+      }
+    }
+
+    // 方法2: 尋找英文代碼 (A, A1, A2, B, C, D, E, F)
+    // 特別注意: 代碼通常在「種」字附近或駕照類別文字附近
+    const codePatterns = [
+      /種[\s\n]*類?[\s\n]*[：:]*[\s\n]*([A-F]\d?)/i,
+      /駕[\s\n]*種[\s\n]*[：:]*[\s\n]*([A-F]\d?)/i,
+      /([A-F]\d?)[\s\n]*種/i,
+      /(?:普通|大型|輕型)(?:重型)?(?:機車|小型車|大貨車|大客車)[\s\n]+([A-F]\d?)/i,
+      /持[\s\n]*照[\s\n]+([A-F]\d?)/i,  // 新增: 持照附近
+      /種[\s\n]*類[\s\n]*([A-F]\d?)/i
+    ];
+
+    for (const pattern of codePatterns) {
+      const match = normalizedText.match(pattern);
+      if (match && match[1]) {
+        const code = match[1].toUpperCase();
+        console.log('✓ 找到駕照種類代碼:', code);
+        if (licenseTypes[code]) {
+          detectedTypes.push(`${licenseTypes[code]} (${code})`);
+        } else {
+          detectedTypes.push(code);
+        }
+      }
+    }
+
+    // 方法3: 從 words 陣列中尋找 (利用位置資訊)
+    if (words && words.length > 0) {
+      console.log('檢查 words 陣列...');
+      for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+        const wordText = (word.text || '').trim()
+          .replace(/车/g, '車')
+          .replace(/货/g, '貨');
+
+        // 尋找「種」字附近的文字
+        if (wordText.includes('種') || wordText.includes('持照')) {
+          // 檢查前後的文字
+          if (i + 1 < words.length) {
+            const nextWord = (words[i + 1].text || '').trim();
+            console.log(`  檢查 "${wordText}" 後面的文字: "${nextWord}"`);
+            // 檢查是否為英文代碼
+            const codeMatch = nextWord.match(/^([A-F]\d?)$/i);
+            if (codeMatch) {
+              const code = codeMatch[1].toUpperCase();
+              console.log('  ✓ 從 words 找到駕照代碼:', code);
+              if (licenseTypes[code]) {
+                detectedTypes.push(`${licenseTypes[code]} (${code})`);
+              }
+            }
+          }
+        }
+
+        // 直接匹配駕照類型關鍵字
+        for (const [key, value] of Object.entries(licenseTypes)) {
+          if (wordText.includes(value) || (key.length > 1 && wordText.includes(key))) {
+            console.log('  ✓ 從 words 找到駕照種類:', value);
+            detectedTypes.push(value);
+          }
+        }
+      }
+    }
+
+    // 方法4: 寬鬆匹配 - 尋找獨立的 A, B, C, D, E, F 字母 (在合適的上下文中)
+    const loosePattern = /(?:種|類|駕|照|持照)[\s\n]{0,10}([A-F]\d?)/gi;
+    let match;
+    while ((match = loosePattern.exec(normalizedText)) !== null) {
+      const code = match[1].toUpperCase();
+      console.log('✓ 寬鬆匹配找到代碼:', code);
+      if (licenseTypes[code]) {
+        detectedTypes.push(`${licenseTypes[code]} (${code})`);
+      }
+    }
+
+    // 去重並返回
+    if (detectedTypes.length > 0) {
+      const uniqueTypes = [...new Set(detectedTypes)];
+      const result = uniqueTypes.join(', ');
+      console.log('最終駕照種類:', result);
+      return result;
+    }
+
+    console.log('未找到駕照種類');
+    return null;
+  }
+
+  /**
+   * 提取地址
+   * @param {string} text - OCR 文字
+   * @returns {string|null}
+   */
+  extractAddress(text) {
+    // 尋找「住址」或「地址」關鍵字後面的文字
+    const addressPatterns = [
+      /住[\s]*址[\s]*[：:]*[\s]*([^\n\r]{5,50})/,
+      /地[\s]*址[\s]*[：:]*[\s]*([^\n\r]{5,50})/,
+      /([\u4e00-\u9fa5]{2,4}[市縣][\u4e00-\u9fa5]{2,4}[區鄉鎮市][^\n\r]{3,40})/
+    ];
+
+    for (const pattern of addressPatterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        const address = match[1].trim();
+        // 驗證地址長度
+        if (address.length >= 5 && address.length <= 100) {
+          return address;
+        }
+      }
+    }
+
+    return null;
+  }
 }
 
 module.exports = new ParserService();
