@@ -1,0 +1,40 @@
+{
+  "name": "ionex-id-verify",
+  "version": "1.0.0",
+  "description": "台灣身分證辨識系統 - 使用 Tesseract.js 進行 OCR 辨識",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch"
+  },
+  "keywords": [
+    "taiwan",
+    "id-card",
+    "ocr",
+    "tesseract",
+    "identification",
+    "verification"
+  ],
+  "author": "Ionex",
+  "license": "ISC",
+  "dependencies": {
+    "@google-cloud/vision": "^5.3.4",
+    "@gutenye/ocr-node": "^1.4.8",
+    "axios": "^1.13.2",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "joi": "^18.0.1",
+    "multer": "^2.0.2",
+    "puppeteer": "^24.29.1",
+    "sharp": "^0.34.5",
+    "tesseract.js": "^6.0.1",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0",
+    "nodemon": "^3.1.10",
+    "supertest": "^7.1.4"
+  }
+}

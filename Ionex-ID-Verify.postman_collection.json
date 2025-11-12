@@ -1,0 +1,116 @@
+{
+  "info": {
+    "name": "Ionex ID Verify API",
+    "description": "台灣身分證辨識 API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/health",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "health"]
+        },
+        "description": "檢查 API 服務健康狀態"
+      },
+      "response": []
+    },
+    {
+      "name": "System Status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/status",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "status"]
+        },
+        "description": "查詢系統狀態和 OCR 引擎狀態"
+      },
+      "response": []
+    },
+    {
+      "name": "Verify by URL",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"imageUrl\": \"https://example.com/id-card.jpg\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/verify/url",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "verify", "url"]
+        },
+        "description": "透過圖片 URL 辨識身分證資訊"
+      },
+      "response": []
+    },
+    {
+      "name": "Verify by Upload",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "image",
+              "type": "file",
+              "src": "",
+              "description": "身分證圖片檔案（JPG, PNG, WEBP）"
+            }
+          ]
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/verify/upload",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "verify", "upload"]
+        },
+        "description": "透過上傳圖片辨識身分證資訊"
+      },
+      "response": []
+    },
+    {
+      "name": "Root Endpoint",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": [""]
+        },
+        "description": "API 根路徑，顯示 API 資訊和使用說明"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}

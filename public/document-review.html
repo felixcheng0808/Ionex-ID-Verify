@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>證件審核系統</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 40px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .login-section {
+            padding: 40px;
+        }
+
+        .env-switch {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            justify-content: center;
+        }
+
+        .env-btn {
+            padding: 12px 30px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .env-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .env-btn:hover:not(.active) {
+            background: #f0f2ff;
+        }
+
+        .login-form {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .login-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .main-content {
+            display: none;
+        }
+
+        .main-content.active {
+            display: block;
+        }
+
+        .user-info {
+            background: #f8f9ff;
+            padding: 20px 40px;
+            border-bottom: 2px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info-text {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .user-info-text strong {
+            color: #333;
+        }
+
+        .logout-btn {
+            padding: 8px 20px;
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .content-area {
+            padding: 40px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            align-items: flex-end;
+        }
+
+        .refresh-btn {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .refresh-btn:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            flex: 1;
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .stat-card .label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .document-list {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .document-list table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .document-list th {
+            background: #f8f9ff;
+            padding: 15px;
+            text-align: left;
+            font-weight: bold;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .document-list td {
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .document-list tr:hover {
+            background: #fafbff;
+        }
+
+        .action-btn {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .action-btn:hover {
+            background: #5568d3;
+            transform: scale(1.05);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-approved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .modal-btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .modal-btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .modal-btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .modal-btn-secondary:hover {
+            background: #d0d0d0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🪪 證件審核系統</h1>
+            <p>Ionex 身分證審核與自動填寫管理平台</p>
+        </div>
+
+        <!-- 登入區域 -->
+        <div class="login-section" id="loginSection">
+            <div class="env-switch">
+                <button class="env-btn active" data-env="alpha">Alpha 環境</button>
+                <button class="env-btn" data-env="prod">Prod 環境</button>
+            </div>
+
+            <div class="login-form">
+                <div id="loginError"></div>
+
+                <div class="form-group">
+                    <label>帳號 (Email)</label>
+                    <input type="email" id="emailInput" placeholder="請輸入帳號" required>
+                </div>
+
+                <div class="form-group">
+                    <label>密碼</label>
+                    <input type="password" id="passwordInput" placeholder="請輸入密碼" required>
+                </div>
+
+                <button class="login-btn" id="loginBtn">登入</button>
+            </div>
+        </div>
+
+        <!-- 主要內容區域 -->
+        <div class="main-content" id="mainContent">
+            <div class="user-info">
+                <div class="user-info-text">
+                    <strong>環境:</strong> <span id="currentEnv">Alpha</span> |
+                    <strong>使用者:</strong> <span id="currentUser">-</span>
+                </div>
+                <button class="logout-btn" id="logoutBtn">登出</button>
+            </div>
+
+            <div class="content-area">
+                <div class="controls">
+                    <button class="refresh-btn" id="refreshBtn">🔄 重新整理</button>
+                </div>
+
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="label">待審核證件</div>
+                        <div class="value" id="totalCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">已載入</div>
+                        <div class="value" id="loadedCount">0</div>
+                    </div>
+                </div>
+
+                <div id="messageArea"></div>
+
+                <div class="document-list">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>使用者名稱</th>
+                                <th>Email</th>
+                                <th>手機</th>
+                                <th>上傳時間</th>
+                                <th>證件狀態</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="documentTableBody">
+                            <tr>
+                                <td colspan="6" class="loading">
+                                    <div class="spinner"></div>
+                                    載入中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 證件詳情 Modal -->
+    <div class="modal" id="documentModal">
+        <div class="modal-content">
+            <div class="modal-header">證件詳情</div>
+            <div class="modal-body" id="modalBody">
+                <!-- 內容由 JS 動態生成 -->
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-secondary" onclick="closeModal()">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 環境配置
+        const ENV_CONFIG = {
+            alpha: {
+                name: 'Alpha',
+                apiKey: 'eab583fa-7d80-fc53-a2f3-a331f2175f87',
+                authUrl: 'https://nex-alpha.ionexenergy.com/api/v2/user/auth',
+                graphqlUrl: 'https://nex-alpha.ionexenergy.com/pjUq6av7ll-ionexGraphQL'
+            },
+            prod: {
+                name: 'Prod',
+                apiKey: '20bed7cc-35d2-4f42-bff6-49eb8f5bfd6d',
+                authUrl: 'https://nex.ionexenergy.com/api/v2/user/auth',
+                graphqlUrl: 'https://nex.ionexenergy.com/pjUq6av7ll-ionexGraphQL'
+            }
+        };
+
+        // 全域狀態
+        let currentEnv = 'alpha';
+        let authToken = null;
+        let userEmail = null;
+        let documentList = [];
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initEventListeners();
+            checkSavedSession();
+        });
+
+        function initEventListeners() {
+            // 環境切換
+            document.querySelectorAll('.env-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.env-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentEnv = this.dataset.env;
+                });
+            });
+
+            // 登入
+            document.getElementById('loginBtn').addEventListener('click', handleLogin);
+            document.getElementById('emailInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') handleLogin();
+            });
+            document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') handleLogin();
+            });
+
+            // 登出
+            document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+
+            // 重新整理
+            document.getElementById('refreshBtn').addEventListener('click', loadDocuments);
+        }
+
+        function checkSavedSession() {
+            const saved = localStorage.getItem('ionex_session');
+            if (saved) {
+                try {
+                    const session = JSON.parse(saved);
+                    if (session.token && session.email && session.env) {
+                        currentEnv = session.env;
+                        authToken = session.token;
+                        userEmail = session.email;
+                        showMainContent();
+                        loadDocuments();
+                    }
+                } catch (e) {
+                    console.error('Failed to restore session:', e);
+                }
+            }
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
+
+            if (!email || !password) {
+                showError('請輸入帳號和密碼');
+                return;
+            }
+
+            const loginBtn = document.getElementById('loginBtn');
+            loginBtn.disabled = true;
+            loginBtn.textContent = '登入中...';
+
+            try {
+                const config = ENV_CONFIG[currentEnv];
+                const response = await fetch(config.authUrl, {
+                    method: 'POST',
+                    headers: {
+                        'scope': 'knex',
+                        'Content-Type': 'application/json',
+                        'x-api-key': config.apiKey
+                    },
+                    body: JSON.stringify({
+                        asp: 'ep',
+                        email: email,
+                        password: password,
+                        deviceId: 'testDeviceIdH'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.tokenInfo && data.tokenInfo.token) {
+                    authToken = data.tokenInfo.token;
+                    userEmail = email;
+
+                    // 儲存 session
+                    localStorage.setItem('ionex_session', JSON.stringify({
+                        token: authToken,
+                        email: userEmail,
+                        env: currentEnv
+                    }));
+
+                    showMainContent();
+                    loadDocuments();
+                } else {
+                    showError(data.message || '登入失敗，請檢查帳號密碼');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('登入失敗: ' + error.message);
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = '登入';
+            }
+        }
+
+        function handleLogout() {
+            authToken = null;
+            userEmail = null;
+            localStorage.removeItem('ionex_session');
+            hideMainContent();
+            document.getElementById('emailInput').value = '';
+            document.getElementById('passwordInput').value = '';
+        }
+
+        function showMainContent() {
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('mainContent').classList.add('active');
+            document.getElementById('currentEnv').textContent = ENV_CONFIG[currentEnv].name;
+            document.getElementById('currentUser').textContent = userEmail;
+        }
+
+        function hideMainContent() {
+            document.getElementById('loginSection').style.display = 'block';
+            document.getElementById('mainContent').classList.remove('active');
+        }
+
+        async function loadDocuments() {
+            const config = ENV_CONFIG[currentEnv];
+            const tableBody = document.getElementById('documentTableBody');
+            tableBody.innerHTML = '<tr><td colspan="6" class="loading"><div class="spinner"></div>載入中...</td></tr>';
+
+            try {
+                const response = await fetch(config.graphqlUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        operationName: 'TableDocumentReview',
+                        variables: {
+                            filter: { organization: 'KYMCO_TW' },
+                            size: 25,
+                            skip: 0,
+                            orderBy: [{ direction: 'ASC', field: 'CERTIFICATE_LAST_UPLOAD_AT' }]
+                        },
+                        query: `query TableDocumentReview($orderBy: [ReviewsOrder!]!, $filter: RentalReviewsFilter, $size: Int, $skip: Int) {
+                            RentalReviewsQuery {
+                                rentalReviews(orderBy: $orderBy, filter: $filter, size: $size, skip: $skip) {
+                                    edges {
+                                        node {
+                                            userId
+                                            organization
+                                            displayName
+                                            email
+                                            phone
+                                            certificateLastUploadAt
+                                            rentalCertificates {
+                                                certificateType
+                                                status
+                                                invalidReason
+                                                url
+                                                uploadAt
+                                                expiredAt
+                                            }
+                                        }
+                                    }
+                                    pageInfo {
+                                        endCursor
+                                        hasNextPage
+                                    }
+                                    totalCount
+                                }
+                            }
+                        }`
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.errors) {
+                    throw new Error(result.errors[0].message);
+                }
+
+                const reviews = result.data.RentalReviewsQuery.rentalReviews;
+                documentList = reviews.edges.map(edge => edge.node);
+
+                document.getElementById('totalCount').textContent = reviews.totalCount;
+                document.getElementById('loadedCount').textContent = documentList.length;
+
+                renderDocumentList();
+                showSuccess(`成功載入 ${documentList.length} 筆資料`);
+
+            } catch (error) {
+                console.error('Load documents error:', error);
+                showError('載入失敗: ' + error.message);
+                tableBody.innerHTML = '<tr><td colspan="6" class="error-message">載入失敗，請重試</td></tr>';
+            }
+        }
+
+        function renderDocumentList() {
+            const tableBody = document.getElementById('documentTableBody');
+
+            if (documentList.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <div>目前沒有待審核的證件</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tableBody.innerHTML = documentList.map((doc, index) => {
+                const idCardFront = doc.rentalCertificates.find(cert => cert.certificateType === 'ID_CARD_FRONT');
+                const statusBadge = getStatusBadge(idCardFront?.status);
+                const uploadTime = formatDate(doc.certificateLastUploadAt);
+
+                return `
+                    <tr>
+                        <td>${doc.displayName || '-'}</td>
+                        <td>${doc.email || '-'}</td>
+                        <td>${doc.phone || '-'}</td>
+                        <td>${uploadTime}</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <button class="action-btn" onclick="fillIdCardUrl(${index})">
+                                📋 帶入證件
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function getStatusBadge(status) {
+            switch (status) {
+                case 'PENDING':
+                    return '<span class="status-badge status-pending">待審核</span>';
+                case 'APPROVED':
+                    return '<span class="status-badge status-approved">已通過</span>';
+                case 'REJECTED':
+                    return '<span class="status-badge status-rejected">已拒絕</span>';
+                default:
+                    return '<span class="status-badge">未知</span>';
+            }
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function fillIdCardUrl(index) {
+            const doc = documentList[index];
+            const idCardFront = doc.rentalCertificates.find(cert => cert.certificateType === 'ID_CARD_FRONT');
+
+            if (!idCardFront || !idCardFront.url) {
+                showError('找不到身分證正面圖片');
+                return;
+            }
+
+            // 開啟增強版測試頁面並帶入 URL
+            const url = `/test-auto-fill-enhanced.html?imageUrl=${encodeURIComponent(idCardFront.url)}&userName=${encodeURIComponent(doc.displayName || '')}`;
+            window.open(url, '_blank');
+        }
+
+        function showError(message) {
+            const area = document.getElementById('loginError') || document.getElementById('messageArea');
+            area.innerHTML = `<div class="error-message">❌ ${message}</div>`;
+            setTimeout(() => {
+                area.innerHTML = '';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const area = document.getElementById('messageArea');
+            area.innerHTML = `<div class="success-message">✓ ${message}</div>`;
+            setTimeout(() => {
+                area.innerHTML = '';
+            }, 3000);
+        }
+
+        function closeModal() {
+            document.getElementById('documentModal').classList.remove('active');
+        }
+    </script>
+</body>
+</html>

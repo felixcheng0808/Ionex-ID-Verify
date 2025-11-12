@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>身分證辨識 + 自動填寫測試 (完整版)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            position: relative;
+            top: 2px;
+        }
+
+        .tab:hover {
+            color: #667eea;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9ff;
+            transition: all 0.3s;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 50px;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .url-input-area {
+            margin-bottom: 20px;
+        }
+
+        .url-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .url-examples {
+            background: #f8f9ff;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 12px;
+        }
+
+        .url-examples-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .url-example {
+            color: #667eea;
+            cursor: pointer;
+            padding: 4px 0;
+            transition: color 0.2s;
+        }
+
+        .url-example:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+
+        .options {
+            background: #f8f9ff;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .option {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .option:last-child {
+            margin-bottom: 0;
+        }
+
+        .option label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            width: 100%;
+        }
+
+        .option input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .option-text {
+            flex: 1;
+        }
+
+        .option-title {
+            font-weight: bold;
+            color: #333;
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .option-desc {
+            font-size: 12px;
+            color: #666;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-bottom: 10px;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .result.success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            display: block;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            display: block;
+        }
+
+        .result-title {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .result-title.success {
+            color: #28a745;
+        }
+
+        .result-title.error {
+            color: #dc3545;
+        }
+
+        .result-content {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .result-section {
+            margin-bottom: 15px;
+        }
+
+        .result-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .result-section-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .result-item {
+            display: flex;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-label {
+            font-weight: bold;
+            color: #666;
+            min-width: 100px;
+        }
+
+        .result-value {
+            color: #333;
+            flex: 1;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .preview {
+            display: none;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .preview.active {
+            display: block;
+        }
+
+        .preview img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .preview-info {
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .info-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🪪 身分證辨識 + 自動填寫</h1>
+        <p class="subtitle">支援上傳圖片或提供 URL 進行辨識，可選擇自動填寫監理服務網表單</p>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="upload">📤 上傳圖片</button>
+            <button class="tab" data-tab="url">🔗 圖片 URL</button>
+        </div>
+
+        <!-- 上傳圖片 Tab -->
+        <div class="tab-content active" id="upload-tab">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📤</div>
+                <p style="font-size: 16px; color: #333; margin-bottom: 5px;">
+                    點擊或拖曳圖片至此處
+                </p>
+                <p style="font-size: 12px; color: #666;">
+                    支援 JPG, PNG, JPEG 格式
+                </p>
+                <input type="file" id="fileInput" accept="image/jpeg,image/jpg,image/png">
+            </div>
+
+            <div class="preview" id="uploadPreview">
+                <img id="uploadPreviewImage" src="" alt="預覽">
+                <div class="preview-info" id="uploadPreviewInfo"></div>
+            </div>
+        </div>
+
+        <!-- URL Tab -->
+        <div class="tab-content" id="url-tab">
+            <div class="url-input-area">
+                <div class="url-input-group">
+                    <input type="text" id="urlInput" placeholder="請輸入身分證圖片的 URL (例如: https://example.com/id-card.jpg)">
+                </div>
+                <div class="url-examples">
+                    <div class="url-examples-title">💡 範例 URL (點擊使用):</div>
+                    <div class="url-example" data-url="https://ionexenergy-nex-cloud.s3.us-west-2.amazonaws.com/id-card-sample.jpg">
+                        範例 1: S3 公開圖片
+                    </div>
+                    <div class="url-example" data-url="https://example.com/public/id-card.jpg">
+                        範例 2: 一般 HTTP 圖片
+                    </div>
+                </div>
+            </div>
+
+            <div class="preview" id="urlPreview">
+                <img id="urlPreviewImage" src="" alt="預覽">
+                <div class="preview-info" id="urlPreviewInfo"></div>
+            </div>
+        </div>
+
+        <div class="options">
+            <div class="option">
+                <label>
+                    <input type="checkbox" id="autoFillForm">
+                    <div class="option-text">
+                        <span class="option-title">啟用自動填寫</span>
+                        <span class="option-desc">辨識後自動打開監理服務網並填寫表單</span>
+                    </div>
+                </label>
+            </div>
+            <div class="option">
+                <label>
+                    <input type="checkbox" id="keepBrowserAlive" checked>
+                    <div class="option-text">
+                        <span class="option-title">保持瀏覽器開啟</span>
+                        <span class="option-desc">等待手動輸入驗證碼 (建議勾選)</span>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <button id="submitBtn" disabled>請先選擇圖片或輸入 URL</button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>處理中，請稍候...</p>
+        </div>
+
+        <div class="result" id="result"></div>
+    </div>
+
+    <script>
+        // 從 URL 參數載入圖片
+        function loadFromUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            const imageUrl = params.get('imageUrl');
+            const userName = params.get('userName');
+
+            if (imageUrl) {
+                // 切換到 URL tab
+                document.querySelector('[data-tab="url"]').click();
+
+                // 填入 URL
+                document.getElementById('urlInput').value = imageUrl;
+
+                // 觸發預覽
+                loadUrlPreview(imageUrl);
+
+                // 更新提交按鈕
+                updateSubmitButton();
+
+                // 如果有使用者名稱,顯示訊息
+                if (userName) {
+                    document.querySelector('.subtitle').textContent =
+                        `正在處理 ${userName} 的身分證 - 支援上傳圖片或提供 URL 進行辨識`;
+                }
+            }
+        }
+
+        // Tab 切換
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(tc => tc.classList.remove('active'));
+
+                tab.classList.add('active');
+                document.getElementById(`${tabName}-tab`).classList.add('active');
+
+                updateSubmitButton();
+            });
+        });
+
+        // 上傳功能
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadPreview = document.getElementById('uploadPreview');
+        const uploadPreviewImage = document.getElementById('uploadPreviewImage');
+        const uploadPreviewInfo = document.getElementById('uploadPreviewInfo');
+
+        let selectedFile = null;
+
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFile(e.target.files[0]);
+        });
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0]);
+        });
+
+        function handleFile(file) {
+            if (!file) return;
+
+            if (!file.type.match('image/(jpeg|jpg|png)')) {
+                alert('請選擇 JPG 或 PNG 格式的圖片');
+                return;
+            }
+
+            selectedFile = file;
+            updateSubmitButton();
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                uploadPreviewImage.src = e.target.result;
+                uploadPreview.classList.add('active');
+                uploadPreviewInfo.textContent = `檔案: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // URL 功能
+        const urlInput = document.getElementById('urlInput');
+        const urlPreview = document.getElementById('urlPreview');
+        const urlPreviewImage = document.getElementById('urlPreviewImage');
+        const urlPreviewInfo = document.getElementById('urlPreviewInfo');
+        const urlExamples = document.querySelectorAll('.url-example');
+
+        urlInput.addEventListener('input', () => {
+            updateSubmitButton();
+            if (urlInput.value.trim()) {
+                loadUrlPreview(urlInput.value.trim());
+            } else {
+                urlPreview.classList.remove('active');
+            }
+        });
+
+        urlExamples.forEach(example => {
+            example.addEventListener('click', () => {
+                const url = example.dataset.url;
+                urlInput.value = url;
+                updateSubmitButton();
+                loadUrlPreview(url);
+            });
+        });
+
+        function loadUrlPreview(url) {
+            urlPreviewImage.src = url;
+            urlPreviewImage.onload = () => {
+                urlPreview.classList.add('active');
+                urlPreviewInfo.textContent = `URL: ${url}`;
+            };
+            urlPreviewImage.onerror = () => {
+                urlPreview.classList.remove('active');
+                urlPreviewInfo.textContent = '無法載入圖片預覽';
+            };
+        }
+
+        // 提交功能
+        const submitBtn = document.getElementById('submitBtn');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        const autoFillForm = document.getElementById('autoFillForm');
+        const keepBrowserAlive = document.getElementById('keepBrowserAlive');
+
+        function updateSubmitButton() {
+            const activeTab = document.querySelector('.tab.active').dataset.tab;
+
+            if (activeTab === 'upload') {
+                submitBtn.disabled = !selectedFile;
+                submitBtn.textContent = selectedFile ? '開始辨識' : '請先選擇圖片';
+            } else {
+                const hasUrl = urlInput.value.trim() !== '';
+                submitBtn.disabled = !hasUrl;
+                submitBtn.textContent = hasUrl ? '開始辨識' : '請先輸入 URL';
+            }
+        }
+
+        submitBtn.addEventListener('click', async () => {
+            const activeTab = document.querySelector('.tab.active').dataset.tab;
+
+            if (activeTab === 'upload') {
+                await submitUpload();
+            } else {
+                await submitUrl();
+            }
+        });
+
+        async function submitUpload() {
+            if (!selectedFile) return;
+
+            submitBtn.disabled = true;
+            loading.classList.add('active');
+            result.style.display = 'none';
+
+            try {
+                const formData = new FormData();
+                formData.append('image', selectedFile);
+                formData.append('autoFillForm', autoFillForm.checked);
+                formData.append('keepBrowserAlive', keepBrowserAlive.checked);
+
+                const response = await fetch('/api/verify/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                displayResult(data);
+
+            } catch (error) {
+                displayResult({
+                    success: false,
+                    error: error.message || '網路錯誤'
+                });
+            } finally {
+                loading.classList.remove('active');
+                submitBtn.disabled = false;
+            }
+        }
+
+        async function submitUrl() {
+            const url = urlInput.value.trim();
+            if (!url) return;
+
+            submitBtn.disabled = true;
+            loading.classList.add('active');
+            result.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/verify/url', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        imageUrl: url,
+                        autoFillForm: autoFillForm.checked,
+                        keepBrowserAlive: keepBrowserAlive.checked
+                    })
+                });
+
+                const data = await response.json();
+                displayResult(data);
+
+            } catch (error) {
+                displayResult({
+                    success: false,
+                    error: error.message || '網路錯誤'
+                });
+            } finally {
+                loading.classList.remove('active');
+                submitBtn.disabled = false;
+            }
+        }
+
+        function displayResult(data) {
+            result.className = 'result';
+            result.classList.add(data.success ? 'success' : 'error');
+
+            let html = `
+                <div class="result-title ${data.success ? 'success' : 'error'}">
+                    ${data.success ? '✓' : '✗'} ${data.message || (data.success ? '處理成功' : '處理失敗')}
+                </div>
+            `;
+
+            if (data.success && data.data) {
+                html += `
+                    <div class="result-content">
+                        <div class="result-section">
+                            <div class="result-section-title">🪪 辨識結果</div>
+                            <div class="result-item">
+                                <div class="result-label">身分證字號:</div>
+                                <div class="result-value">${data.data.idNumber || '未辨識'}</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">姓名:</div>
+                                <div class="result-value">${data.data.name || '未辨識'}</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">性別:</div>
+                                <div class="result-value">${data.data.gender || '未辨識'}</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">出生日期:</div>
+                                <div class="result-value">${data.data.birthDate || '未辨識'}</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">發證日期:</div>
+                                <div class="result-value">${data.data.issueDate || '未辨識'}</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">發證地點:</div>
+                                <div class="result-value">${data.data.issueLocation || '未辨識'}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                if (data.automation) {
+                    html += `
+                        <div class="result-content" style="margin-top: 15px;">
+                            <div class="result-section">
+                                <div class="result-section-title">🌐 自動填寫結果</div>
+                                <div class="result-item">
+                                    <div class="result-label">狀態:</div>
+                                    <div class="result-value">${data.automation.success ? '✓ 成功' : '✗ 失敗'}</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">訊息:</div>
+                                    <div class="result-value">${data.automation.message}</div>
+                                </div>
+                                ${data.automation.data ? `
+                                    <div class="result-item">
+                                        <div class="result-label">生日格式:</div>
+                                        <div class="result-value">${data.automation.data.birthDateFormatted}</div>
+                                    </div>
+                                    <div class="result-item">
+                                        <div class="result-label">表單已填寫:</div>
+                                        <div class="result-value">${data.automation.data.formFilled ? '是' : '否'}</div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+            } else if (data.error) {
+                html += `
+                    <div class="result-content">
+                        <div class="result-section">
+                            <div class="result-section-title">錯誤訊息</div>
+                            <div style="color: #dc3545; padding: 10px;">${data.error}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            result.innerHTML = html;
+        }
+
+        // 頁面載入完成時執行
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFromUrlParams();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>身分證辨識測試</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px 20px;
+            text-align: center;
+            background: #f8f9ff;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-block;
+            margin: 10px 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .preview-area {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .result-area {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            display: none;
+        }
+
+        .result-area.show {
+            display: block;
+        }
+
+        .result-title {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .result-item {
+            padding: 12px;
+            margin: 10px 0;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .result-value {
+            color: #333;
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .success {
+            color: #2ecc71;
+            font-weight: 600;
+        }
+
+        .warning {
+            color: #f39c12;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🪪 台灣身分證辨識系統</h1>
+        <p class="subtitle">上傳身分證圖片進行資訊辨識</p>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📤</div>
+            <p style="font-size: 18px; color: #667eea; font-weight: 600;">點擊或拖曳圖片到此處</p>
+            <p style="color: #999; margin-top: 10px;">支援 JPG, PNG, WEBP 格式，最大 10MB</p>
+        </div>
+
+        <input type="file" id="fileInput" accept="image/*">
+
+        <div class="preview-area" id="previewArea" style="display: none;">
+            <p style="color: #666; margin-bottom: 10px;">預覽圖片：</p>
+            <img id="previewImage" class="preview-image" src="" alt="預覽">
+        </div>
+
+        <div style="text-align: center;">
+            <button class="btn" id="uploadBtn" disabled>開始辨識</button>
+            <button class="btn" id="clearBtn" style="background: #95a5a6;" disabled>清除</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="color: #667eea; font-weight: 600;">辨識中，請稍候...</p>
+            <p style="color: #999; font-size: 14px; margin-top: 5px;">首次辨識需要下載語言包，可能需要較長時間</p>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="result-area" id="resultArea">
+            <div class="result-title">✅ 辨識結果</div>
+            <div id="resultContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3888/api/verify/upload';
+
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const previewArea = document.getElementById('previewArea');
+        const previewImage = document.getElementById('previewImage');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const resultArea = document.getElementById('resultArea');
+        const resultContent = document.getElementById('resultContent');
+
+        let selectedFile = null;
+
+        // 點擊上傳區域
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // 檔案選擇
+        fileInput.addEventListener('change', (e) => {
+            handleFile(e.target.files[0]);
+        });
+
+        // 拖曳上傳
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0]);
+        });
+
+        // 處理檔案
+        function handleFile(file) {
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                showError('請選擇圖片檔案');
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                showError('檔案大小不能超過 10MB');
+                return;
+            }
+
+            selectedFile = file;
+
+            // 顯示預覽
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                previewArea.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+
+            uploadBtn.disabled = false;
+            clearBtn.disabled = false;
+            hideError();
+            hideResult();
+        }
+
+        // 上傳並辨識
+        uploadBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            const formData = new FormData();
+            formData.append('image', selectedFile);
+
+            showLoading();
+            hideError();
+            hideResult();
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                hideLoading();
+
+                if (data.success) {
+                    showResult(data);
+                } else {
+                    showError(data.error || '辨識失敗');
+                }
+            } catch (err) {
+                hideLoading();
+                showError('網路錯誤: ' + err.message);
+            }
+        });
+
+        // 清除
+        clearBtn.addEventListener('click', () => {
+            selectedFile = null;
+            fileInput.value = '';
+            previewArea.style.display = 'none';
+            uploadBtn.disabled = true;
+            clearBtn.disabled = true;
+            hideError();
+            hideResult();
+        });
+
+        function showLoading() {
+            loading.classList.add('show');
+            uploadBtn.disabled = true;
+        }
+
+        function hideLoading() {
+            loading.classList.remove('show');
+            uploadBtn.disabled = false;
+        }
+
+        function showError(message) {
+            error.textContent = '❌ ' + message;
+            error.classList.add('show');
+        }
+
+        function hideError() {
+            error.classList.remove('show');
+        }
+
+        function showResult(data) {
+            const { data: result, validation, confidence } = data;
+
+            let html = '';
+
+            if (result.idNumber) {
+                html += createResultItem('身分證字號', result.idNumber);
+            }
+            if (result.name) {
+                html += createResultItem('姓名', result.name);
+            }
+            if (result.gender) {
+                html += createResultItem('性別', result.gender);
+            }
+            if (result.birthDate) {
+                html += createResultItem('出生日期', result.birthDate);
+            }
+            if (result.issueDate) {
+                html += createResultItem('發證日期', result.issueDate);
+            }
+            if (result.issueLocation) {
+                html += createResultItem('發證地點', result.issueLocation);
+            }
+
+            html += createResultItem('辨識信心度', Math.round(confidence) + '%');
+
+            if (validation.missingFields && validation.missingFields.length > 0) {
+                html += '<div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 8px; color: #856404;">';
+                html += '<strong>⚠️ 部分欄位未能辨識：</strong> ' + validation.missingFields.join(', ');
+                html += '</div>';
+            }
+
+            resultContent.innerHTML = html;
+            resultArea.classList.add('show');
+        }
+
+        function hideResult() {
+            resultArea.classList.remove('show');
+        }
+
+        function createResultItem(label, value) {
+            return `
+                <div class="result-item">
+                    <span class="result-label">${label}</span>
+                    <span class="result-value">${value || '無資料'}</span>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
