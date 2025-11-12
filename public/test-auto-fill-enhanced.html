@@ -477,29 +477,45 @@
             const userName = params.get('userName');
 
             if (imageUrl || drivingLicenseUrl) {
-                // 切換到 URL tab
-                document.querySelector('[data-tab="url"]').click();
+                // 使用 setTimeout 確保 DOM 完全載入
+                setTimeout(() => {
+                    // 切換到 URL tab
+                    const urlTab = document.querySelector('[data-tab="url"]');
+                    if (urlTab) {
+                        urlTab.click();
+                    }
 
-                // 填入身分證 URL
-                if (imageUrl) {
-                    document.getElementById('urlInput').value = imageUrl;
-                    loadUrlPreview(imageUrl);
-                }
+                    // 填入身分證 URL
+                    if (imageUrl) {
+                        const urlInput = document.getElementById('urlInput');
+                        if (urlInput) {
+                            urlInput.value = imageUrl;
+                            loadUrlPreview(imageUrl);
+                        }
+                    }
 
-                // 填入駕照 URL
-                if (drivingLicenseUrl) {
-                    document.getElementById('drivingLicenseUrlInput').value = drivingLicenseUrl;
-                    loadDrivingLicensePreview(drivingLicenseUrl);
-                }
+                    // 填入駕照 URL (使用更長的延遲確保圖片載入)
+                    if (drivingLicenseUrl) {
+                        setTimeout(() => {
+                            const drivingLicenseUrlInput = document.getElementById('drivingLicenseUrlInput');
+                            if (drivingLicenseUrlInput) {
+                                drivingLicenseUrlInput.value = drivingLicenseUrl;
+                                loadDrivingLicensePreview(drivingLicenseUrl);
+                            }
+                        }, 500); // 延遲 500ms 確保身分證圖片先載入
+                    }
 
-                // 更新提交按鈕
-                updateSubmitButton();
+                    // 更新提交按鈕
+                    updateSubmitButton();
 
-                // 如果有使用者名稱,顯示訊息
-                if (userName) {
-                    document.querySelector('.subtitle').textContent =
-                        `正在處理 ${userName} 的證件 - 支援上傳圖片或提供 URL 進行辨識`;
-                }
+                    // 如果有使用者名稱,顯示訊息
+                    if (userName) {
+                        const subtitle = document.querySelector('.subtitle');
+                        if (subtitle) {
+                            subtitle.textContent = `正在處理 ${userName} 的證件 - 支援上傳圖片或提供 URL 進行辨識`;
+                        }
+                    }
+                }, 100); // 延遲 100ms 確保 DOM 完全載入
             }
         }
 
