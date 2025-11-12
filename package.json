@@ -1,8 +1,12 @@
 {
   "name": "ionex-id-verify",
-  "version": "1.0.0",
-  "description": "台灣身分證辨識系統 - 使用 Tesseract.js 進行 OCR 辨識",
+  "version": "2.0.0",
+  "description": "台灣身分證辨識系統 - 整合 OCR 辨識、自動填寫、證件審核功能",
   "main": "src/app.js",
+  "engines": {
+    "node": ">=18.x",
+    "npm": ">=9.x"
+  },
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",

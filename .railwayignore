@@ -1,0 +1,40 @@
+# Railway 部署時忽略的檔案
+
+# 開發工具
+.git/
+.vscode/
+.idea/
+
+# 測試檔案
+tests/
+*.test.js
+coverage/
+
+# 文檔（可選，如果想減少部署大小）
+# *.md
+
+# 臨時檔案
+temp/*
+!temp/.gitkeep
+uploads/*
+!uploads/.gitkeep
+
+# 日誌
+logs/
+*.log
+
+# 系統檔案
+.DS_Store
+Thumbs.db
+
+# 本地環境變數
+.env.local
+.env.*.local
+
+# Node modules（會被重新安裝）
+node_modules/
+
+# 測試腳本
+test_*.js
+example-test.js
+test-upload.html
