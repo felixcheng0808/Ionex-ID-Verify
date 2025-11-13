@@ -503,52 +503,80 @@
             const drivingLicenseUrl = params.get('drivingLicenseUrl');
             const userName = params.get('userName');
 
-            if (imageUrl || drivingLicenseUrl) {
-                // 使用 setTimeout 確保 DOM 完全載入
-                setTimeout(() => {
-                    // 切換到 URL tab
-                    const urlTab = document.querySelector('[data-tab="url"]');
-                    if (urlTab) {
-                        urlTab.click();
-                    }
+            console.log('=== loadFromUrlParams 被呼叫 ===');
+            console.log('當前 URL:', window.location.href);
+            console.log('URL 參數:');
+            console.log('  - imageUrl:', imageUrl);
+            console.log('  - drivingLicenseUrl:', drivingLicenseUrl);
+            console.log('  - userName:', userName);
 
+            if (!imageUrl && !drivingLicenseUrl) {
+                console.log('沒有偵測到任何 URL 參數，略過自動載入');
+                return;
+            }
+
+            // 使用較長的延遲確保 DOM 完全載入
+            setTimeout(() => {
+                console.log('開始處理 URL 參數...');
+
+                // 1. 切換到 URL tab
+                const urlTab = document.querySelector('[data-tab="url"]');
+                if (urlTab) {
+                    console.log('✓ 找到 URL tab，點擊切換');
+                    urlTab.click();
+                } else {
+                    console.error('✗ 找不到 URL tab 元素');
+                    return;
+                }
+
+                // 2. 等待 tab 切換完成後再填入資料
+                setTimeout(() => {
                     // 填入身分證 URL
                     if (imageUrl) {
                         const urlInput = document.getElementById('urlInput');
                         if (urlInput) {
+                            console.log('✓ 找到身分證 URL 輸入框');
+                            console.log('填入身分證 URL:', imageUrl);
                             urlInput.value = imageUrl;
+                            // 直接載入預覽並辨識
+                            setTimeout(() => {
+                                console.log('開始載入身分證預覽...');
+                                loadUrlPreview(imageUrl);
+                            }, 200);
+                        } else {
+                            console.error('✗ 找不到身分證 URL 輸入框 (urlInput)');
                         }
                     }
 
                     // 填入駕照 URL
                     if (drivingLicenseUrl) {
-                        const drivingLicenseUrlInput = document.getElementById('drivingLicenseUrlInput');
-                        if (drivingLicenseUrlInput) {
-                            drivingLicenseUrlInput.value = drivingLicenseUrl;
-                        }
-                    }
-
-                    // 從快照載入時自動觸發 form submit
-                    if (imageUrl) {
                         setTimeout(() => {
-                            const urlForm = document.getElementById('urlForm');
-                            if (urlForm) {
-                                urlForm.requestSubmit(); // 觸發 submit 事件
+                            const drivingLicenseUrlInput = document.getElementById('drivingLicenseUrlInput');
+                            if (drivingLicenseUrlInput) {
+                                console.log('✓ 找到駕照 URL 輸入框');
+                                console.log('填入駕照 URL:', drivingLicenseUrl);
+                                drivingLicenseUrlInput.value = drivingLicenseUrl;
+                                // 直接載入預覽並辨識
+                                setTimeout(() => {
+                                    console.log('開始載入駕照預覽...');
+                                    loadDrivingLicensePreview(drivingLicenseUrl);
+                                }, 200);
+                            } else {
+                                console.error('✗ 找不到駕照 URL 輸入框 (drivingLicenseUrlInput)');
                             }
-                        }, 300); // 延遲確保 DOM 更新完成
+                        }, 600);
                     }
-
-                    // 更新提交按鈕
 
                     // 如果有使用者名稱,顯示訊息
                     if (userName) {
                         const subtitle = document.querySelector('.subtitle');
                         if (subtitle) {
+                            console.log('✓ 更新使用者名稱:', userName);
                             subtitle.textContent = `正在處理 ${userName} 的證件 - 支援上傳圖片或提供 URL 進行辨識`;
                         }
                     }
-                }, 100); // 延遲 100ms 確保 DOM 完全載入
-            }
+                }, 300); // tab 切換後延遲
+            }, 200); // 初始延遲
         }
 
         // Tab 切換
@@ -1005,33 +1033,36 @@
             drivingLicenseResult.style.display = 'block';
         }
 
-        // 提交功能
+        // 提交功能 (已改為 form submit，此處保留以避免錯誤)
         const submitBtn = document.getElementById('submitBtn');
         const loading = document.getElementById('loading');
         const result = document.getElementById('result');
         const autoFillForm = document.getElementById('autoFillForm');
         const keepBrowserAlive = document.getElementById('keepBrowserAlive');
 
-        submitBtn.addEventListener('click', async () => {
-            console.log('開始辨識按鈕被點擊');
-            const activeTab = document.querySelector('.tab.active').dataset.tab;
-            console.log('當前 Tab:', activeTab);
+        // 只有當元素存在時才添加事件監聽器
+        if (submitBtn) {
+            submitBtn.addEventListener('click', async () => {
+                console.log('開始辨識按鈕被點擊');
+                const activeTab = document.querySelector('.tab.active').dataset.tab;
+                console.log('當前 Tab:', activeTab);
 
-            // 檢查是否勾選自動填寫
-            if (autoFillForm.checked) {
-                console.log('已勾選自動填寫');
-                // 在手機上顯示提示
-                if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-                    alert('提示：自動填寫功能會在伺服器端執行,不會在您的手機上打開瀏覽器。如需手動填寫,請取消勾選「啟用自動填寫」選項。');
+                // 檢查是否勾選自動填寫
+                if (autoFillForm && autoFillForm.checked) {
+                    console.log('已勾選自動填寫');
+                    // 在手機上顯示提示
+                    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                        alert('提示：自動填寫功能會在伺服器端執行,不會在您的手機上打開瀏覽器。如需手動填寫,請取消勾選「啟用自動填寫」選項。');
+                    }
                 }
-            }
 
-            if (activeTab === 'upload') {
-                await submitUpload();
-            } else {
-                await submitUrl();
-            }
-        });
+                if (activeTab === 'upload') {
+                    await submitUpload();
+                } else {
+                    await submitUrl();
+                }
+            });
+        }
 
         async function submitUpload() {
             if (!selectedFile) return;
@@ -1311,9 +1342,32 @@
             }
         }
 
-        // 頁面載入完成時執行
-        document.addEventListener('DOMContentLoaded', function() {
+        // 頁面載入完成時執行 - 確保在所有腳本載入後執行
+        console.log('腳本開始執行，document.readyState =', document.readyState);
+        console.log('當前 URL:', window.location.href);
+
+        if (document.readyState === 'loading') {
+            console.log('等待 DOMContentLoaded 事件...');
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('DOMContentLoaded 事件觸發');
+                loadFromUrlParams();
+            });
+        } else {
+            // DOM 已經載入完成，直接執行
+            console.log('DOM 已載入，直接執行 loadFromUrlParams');
             loadFromUrlParams();
+        }
+
+        // 額外保險：使用 window.onload
+        window.addEventListener('load', function() {
+            console.log('window.onload 事件觸發');
+            // 檢查是否已經執行過
+            const params = new URLSearchParams(window.location.search);
+            if ((params.get('imageUrl') || params.get('drivingLicenseUrl')) && !window.urlParamsLoaded) {
+                console.log('從 window.onload 執行 loadFromUrlParams (備用)');
+                window.urlParamsLoaded = true;
+                loadFromUrlParams();
+            }
         });
     </script>
 </body>
