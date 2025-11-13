@@ -716,12 +716,18 @@
                     },
                     body: JSON.stringify({
                         imageUrl: imageUrl,
-                        autoFillForm: true,
+                        autoFillForm: false
                     })
                 });
 
                 const data = await response.json();
                 displayIDCardResult(data);
+
+                // 如果辨識成功且有身分證字號和生日，則在背景查詢違規記錄
+                if (data.success && data.data.idNumber && data.data.birthDate) {
+                    console.log('開始背景查詢違規記錄...');
+                    checkViolationInBackground(imageUrl, data.data.idNumber, data.data.birthDate, 'idCard');
+                }
 
             } catch (error) {
                 idCardResult.className = 'result error';
@@ -910,7 +916,7 @@
                     },
                     body: JSON.stringify({
                         imageUrl: imageUrl,
-                        autoFillForm: true,
+                        autoFillForm: false
                     })
                 });
 
@@ -1183,6 +1189,80 @@
             }
 
             result.innerHTML = html;
+        }
+
+        // 背景查詢違規記錄
+        async function checkViolationInBackground(imageUrl, idNumber, birthDate, type) {
+            const resultElement = type === 'idCard' ?
+                document.getElementById('idCardResult') :
+                document.getElementById('drivingLicenseResult');
+
+            // 在結果區域加入查詢狀態提示
+            const statusDiv = document.createElement('div');
+            statusDiv.id = `${type}-violation-status`;
+            statusDiv.style.cssText = 'margin-top: 15px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; text-align: center;';
+            statusDiv.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                    <div class="spinner" style="width: 20px; height: 20px; border-width: 3px;"></div>
+                    <span style="color: #856404;">正在查詢違規記錄...</span>
+                </div>
+            `;
+            resultElement.appendChild(statusDiv);
+
+            try {
+                console.log(`查詢違規記錄 - 身分證: ${idNumber}, 生日: ${birthDate}`);
+                const response = await fetch('/api/verify/url', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        imageUrl: imageUrl,
+                        autoFillForm: true
+                    })
+                });
+
+                const data = await response.json();
+                console.log('違規記錄查詢完成:', data);
+
+                // 更新狀態顯示
+                if (data.automation && data.automation.success) {
+                    const hasViolation = data.automation.hasViolation;
+                    statusDiv.style.background = hasViolation ? '#f8d7da' : '#d4edda';
+                    statusDiv.style.borderColor = hasViolation ? '#dc3545' : '#28a745';
+                    statusDiv.innerHTML = `
+                        <div style="color: ${hasViolation ? '#721c24' : '#155724'}; font-weight: bold;">
+                            ${hasViolation ? '⚠️ 有違規記錄' : '✓ 無違規記錄'}
+                        </div>
+                        <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                            查詢時間: ${new Date().toLocaleTimeString('zh-TW')}
+                        </div>
+                    `;
+                } else {
+                    statusDiv.style.background = '#f8d7da';
+                    statusDiv.style.borderColor = '#dc3545';
+                    statusDiv.innerHTML = `
+                        <div style="color: #721c24;">
+                            ❌ 違規記錄查詢失敗
+                        </div>
+                        <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                            ${data.automation?.message || '查詢過程發生錯誤'}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('違規記錄查詢錯誤:', error);
+                statusDiv.style.background = '#f8d7da';
+                statusDiv.style.borderColor = '#dc3545';
+                statusDiv.innerHTML = `
+                    <div style="color: #721c24;">
+                        ❌ 違規記錄查詢失敗
+                    </div>
+                    <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                        ${error.message || '網路錯誤'}
+                    </div>
+                `;
+            }
         }
 
         // 複製到剪貼簿功能
