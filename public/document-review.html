@@ -685,7 +685,7 @@
                 name: 'Prod',
                 apiKey: '20bed7cc-35d2-4f42-bff6-49eb8f5bfd6d',
                 authUrl: 'https://nex.ionexenergy.com/api/v2/user/auth',
-                graphqlUrl: 'https://nex.ionexenergy.com/pjUq6av7ll-ionexGraphQL'
+                graphqlUrl: 'https://nex-console.ionexenergy.com/d5eGQDwmbwYuWEdWfUZt-ionex'
             }
         };
 
@@ -833,7 +833,8 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
+                        'Authorization': `Bearer ${authToken}`,
+                        'x-api-key': config.apiKey
                     },
                     body: JSON.stringify({
                         operationName: 'TableDocumentReview',
