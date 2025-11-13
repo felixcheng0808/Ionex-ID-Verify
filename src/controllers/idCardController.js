@@ -95,7 +95,7 @@ class IDCardController {
         validation: {
           isComplete: validation.isComplete,
           missingFields: validation.missingFields,
-          hasWarnings: automationResult.hasViolation,
+          hasWarnings: automationResult?.hasViolation || false,
         },
         confidence: parseResult.confidence,
         message: parseResult.success ? '辨識成功' : '辨識失敗，請確認圖片品質'

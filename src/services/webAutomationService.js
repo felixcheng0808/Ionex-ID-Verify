@@ -82,12 +82,12 @@ class WebAutomationService {
    * 自動填寫監理服務網表單、辨識驗證碼並查詢違規記錄
    * @param {string} idNumber - 身分證字號
    * @param {string} birthDate - 生日 (民國年格式，例如: "74年1月1日")
-   * @param {object} options - 選項 (maxRetries: 最大重試次數，預設 10)
+   * @param {object} options - 選項 (maxRetries: 最大重試次數，預設 5)
    * @returns {Promise<boolean>} true: 有違規記錄, false: 無違規記錄
    * @throws {Error} 當查詢失敗時拋出錯誤
    */
   async isViolationRecords(idNumber, birthDate, options = {}) {
-    const maxRetries = options.maxRetries || 10;
+    const maxRetries = options.maxRetries || 5;
 
     // 1. 驗證輸入資料
     if (!idNumber) {
@@ -185,8 +185,12 @@ class WebAutomationService {
 
       console.log('正在開啟網頁...');
       await page.goto(this.mvdisUrl, {
-        waitUntil: 'networkidle'
+        waitUntil: 'domcontentloaded',
+        timeout: 60000 // 60 秒超時
       });
+
+      // 額外等待頁面穩定
+      await page.waitForTimeout(2000);
 
       result.data.pageReady = true;
 
