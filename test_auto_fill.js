@@ -8,39 +8,34 @@ const testData = {
 };
 
 async function testAutoFill() {
-  console.log('=== 測試自動填寫監理服務網表單 ===\n');
+  console.log('=== 測試查詢駕照違規記錄 ===\n');
 
   try {
     console.log('測試資料:');
     console.log(`  身分證字號: ${testData.idNumber}`);
     console.log(`  生日: ${testData.birthDate}\n`);
 
-    console.log('開始執行自動填寫...\n');
+    console.log('開始執行查詢...\n');
 
-    const result = await webAutomationService.fillDriverLicensePenaltyForm(
+    const hasViolation = await webAutomationService.isViolationRecords(
       testData.idNumber,
       testData.birthDate,
       {
-        keepAlive: true  // 保持瀏覽器開啟,讓使用者可以輸入驗證碼
+        maxRetries: 10
       }
     );
 
     console.log('\n=== 執行結果 ===');
-    console.log(JSON.stringify(result, null, 2));
+    console.log(`違規記錄: ${hasViolation ? '有違規' : '無違規'}`);
 
-    if (result.success) {
-      console.log('\n✓ 自動填寫成功！');
-      console.log('請在瀏覽器中檢查表單是否正確填寫。');
-      console.log('您可以手動輸入驗證碼並提交表單。');
-      console.log('\n按 Ctrl+C 退出程式...');
+    if (hasViolation) {
+      console.log('\n⚠️  查詢到違規記錄！');
     } else {
-      console.log('\n✗ 自動填寫失敗');
-      console.error('錯誤:', result.errors);
-      process.exit(1);
+      console.log('\n✓ 無違規記錄');
     }
 
   } catch (error) {
-    console.error('\n✗ 測試過程發生錯誤:', error);
+    console.error('\n✗ 查詢過程發生錯誤:', error);
     process.exit(1);
   }
 }

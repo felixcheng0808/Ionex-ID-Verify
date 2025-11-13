@@ -11,7 +11,8 @@
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "test": "jest --coverage",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "postinstall": "npx playwright install chromium && npx playwright install-deps chromium"
   },
   "keywords": [
     "taiwan",
@@ -25,12 +26,14 @@
   "license": "ISC",
   "dependencies": {
     "@google-cloud/vision": "^5.3.4",
+    "@google/genai": "^1.29.1",
     "@gutenye/ocr-node": "^1.4.8",
     "axios": "^1.13.2",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "joi": "^18.0.1",
     "multer": "^2.0.2",
+    "playwright": "^1.56.1",
     "puppeteer": "^24.29.1",
     "sharp": "^0.34.5",
     "tesseract.js": "^6.0.1",

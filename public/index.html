@@ -357,7 +357,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ imageUrl }),
+                    body: JSON.stringify({ imageUrl, autoFillForm: true }),
                 });
 
                 const data = await response.json();
@@ -458,9 +458,9 @@
                     <div class="result-item">
                         <strong>信心度：</strong>${data.confidence ? data.confidence.toFixed(2) + '%' : 'N/A'}
                     </div>
-                    ${data.validation && data.validation.warnings && data.validation.warnings.length > 0 ?
+                    ${data?.validation?.hasWarnings !== undefined ?
                         `<div class="result-item">
-                            <strong>警告：</strong>${data.validation.warnings.join(', ')}
+                            <strong>違規記錄：</strong>${data?.validation?.hasWarnings ? '⚠️ 有違規記錄' : '✅ 無違規記錄'}
                         </div>` : ''}
                 `;
             } else {

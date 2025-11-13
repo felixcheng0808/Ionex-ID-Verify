@@ -21,9 +21,7 @@ class IDCardController {
         }),
         autoFillForm: Joi.boolean().default(false).messages({
           'boolean.base': 'autoFillForm 必須是布林值'
-        }),
-        keepBrowserAlive: Joi.boolean().default(true),
-        puppeteerOptions: Joi.object().default({})
+        })
       });
 
       const { error, value } = schema.validate(req.body);
@@ -34,7 +32,7 @@ class IDCardController {
         });
       }
 
-      const { imageUrl, autoFillForm, keepBrowserAlive, puppeteerOptions } = value;
+      const { imageUrl, autoFillForm } = value;
 
       // 1. 下載圖片
       console.log('正在下載圖片...');
@@ -83,24 +81,11 @@ class IDCardController {
       // 7. 如果啟用自動填寫且辨識成功
       let automationResult = null;
       if (autoFillForm && parseResult.success && parseResult.data.idNumber && parseResult.data.birthDate) {
-        console.log('正在自動填寫監理服務網表單...');
-        try {
-          automationResult = await webAutomationService.fillDriverLicensePenaltyForm(
-            parseResult.data.idNumber,
-            parseResult.data.birthDate,
-            {
-              keepAlive: keepBrowserAlive,
-              puppeteerOptions
-            }
-          );
-        } catch (autoError) {
-          console.error('自動填寫表單失敗:', autoError);
-          automationResult = {
-            success: false,
-            message: autoError.message || '自動填寫表單失敗',
-            errors: [autoError.message]
-          };
-        }
+        console.log('正在查詢駕照違規記錄...');
+        automationResult = await this._checkViolationRecords(
+          parseResult.data.idNumber,
+          parseResult.data.birthDate
+        );
       }
 
       // 8. 回傳結果
@@ -110,7 +95,7 @@ class IDCardController {
         validation: {
           isComplete: validation.isComplete,
           missingFields: validation.missingFields,
-          warnings: validation.warnings
+          hasWarnings: automationResult.hasViolation,
         },
         confidence: parseResult.confidence,
         message: parseResult.success ? '辨識成功' : '辨識失敗，請確認圖片品質'
@@ -158,8 +143,6 @@ class IDCardController {
 
       // 取得選項參數
       const autoFillForm = req.body.autoFillForm === 'true' || req.body.autoFillForm === true;
-      const keepBrowserAlive = req.body.keepBrowserAlive === 'true' || req.body.keepBrowserAlive === true || req.body.keepBrowserAlive === undefined;
-      const puppeteerOptions = req.body.puppeteerOptions ? JSON.parse(req.body.puppeteerOptions) : {};
 
       // 1. 驗證圖片
       await imageService.validateImage(uploadedFile);
@@ -204,24 +187,11 @@ class IDCardController {
       // 6. 如果啟用自動填寫且辨識成功
       let automationResult = null;
       if (autoFillForm && parseResult.success && parseResult.data.idNumber && parseResult.data.birthDate) {
-        console.log('正在自動填寫監理服務網表單...');
-        try {
-          automationResult = await webAutomationService.fillDriverLicensePenaltyForm(
-            parseResult.data.idNumber,
-            parseResult.data.birthDate,
-            {
-              keepAlive: keepBrowserAlive,
-              puppeteerOptions
-            }
-          );
-        } catch (autoError) {
-          console.error('自動填寫表單失敗:', autoError);
-          automationResult = {
-            success: false,
-            message: autoError.message || '自動填寫表單失敗',
-            errors: [autoError.message]
-          };
-        }
+        console.log('正在查詢駕照違規記錄...');
+        automationResult = await this._checkViolationRecords(
+          parseResult.data.idNumber,
+          parseResult.data.birthDate
+        );
       }
 
       // 7. 回傳結果
@@ -231,7 +201,7 @@ class IDCardController {
         validation: {
           isComplete: validation.isComplete,
           missingFields: validation.missingFields,
-          warnings: validation.warnings
+          hasWarnings: automationResult.hasViolation,
         },
         confidence: parseResult.confidence,
         message: parseResult.success ? '辨識成功' : '辨識失敗，請確認圖片品質'
@@ -305,9 +275,7 @@ class IDCardController {
         imageUrl: Joi.string().uri().required().messages({
           'string.uri': '請提供有效的圖片 URL',
           'any.required': '請提供圖片 URL'
-        }),
-        keepBrowserAlive: Joi.boolean().default(true),
-        puppeteerOptions: Joi.object().default({})
+        })
       });
 
       const { error, value } = schema.validate(req.body);
@@ -318,7 +286,7 @@ class IDCardController {
         });
       }
 
-      const { imageUrl, keepBrowserAlive, puppeteerOptions } = value;
+      const { imageUrl } = value;
 
       // 1. 下載圖片
       console.log('正在下載圖片...');
@@ -380,27 +348,23 @@ class IDCardController {
         });
       }
 
-      // 8. 自動填寫表單
-      console.log('正在自動填寫監理服務網表單...');
-      const formResult = await webAutomationService.fillDriverLicensePenaltyForm(
+      // 8. 查詢違規記錄
+      console.log('正在查詢駕照違規記錄...');
+      const formResult = await this._checkViolationRecords(
         parseResult.data.idNumber,
-        parseResult.data.birthDate,
-        {
-          keepAlive: keepBrowserAlive,
-          puppeteerOptions
-        }
+        parseResult.data.birthDate
       );
 
       // 9. 回傳結果
       return res.json({
         success: true,
-        message: '辨識成功並已自動填寫表單',
+        message: '辨識成功並已查詢違規記錄',
         ocr: {
           data: parseResult.data,
           validation: {
             isComplete: validation.isComplete,
             missingFields: validation.missingFields,
-            warnings: validation.warnings
+            hasWarnings: formResult.hasViolation,
           },
           confidence: parseResult.confidence
         },
@@ -434,10 +398,6 @@ class IDCardController {
           error: '請上傳圖片檔案'
         });
       }
-
-      // 取得選項參數
-      const keepBrowserAlive = req.body.keepBrowserAlive === 'true' || req.body.keepBrowserAlive === true;
-      const puppeteerOptions = req.body.puppeteerOptions ? JSON.parse(req.body.puppeteerOptions) : {};
 
       // 1. 驗證圖片
       await imageService.validateImage(uploadedFile);
@@ -495,27 +455,23 @@ class IDCardController {
         });
       }
 
-      // 7. 自動填寫表單
-      console.log('正在自動填寫監理服務網表單...');
-      const formResult = await webAutomationService.fillDriverLicensePenaltyForm(
+      // 7. 查詢違規記錄
+      console.log('正在查詢駕照違規記錄...');
+      const formResult = await this._checkViolationRecords(
         parseResult.data.idNumber,
-        parseResult.data.birthDate,
-        {
-          keepAlive: keepBrowserAlive,
-          puppeteerOptions
-        }
+        parseResult.data.birthDate
       );
 
       // 8. 回傳結果
       return res.json({
         success: true,
-        message: '辨識成功並已自動填寫表單',
+        message: '辨識成功並已查詢違規記錄',
         ocr: {
           data: parseResult.data,
           validation: {
             isComplete: validation.isComplete,
             missingFields: validation.missingFields,
-            warnings: validation.warnings
+            hasWarnings: formResult.hasViolation,
           },
           confidence: parseResult.confidence
         },
@@ -531,6 +487,37 @@ class IDCardController {
     } finally {
       // 清理臨時檔案
       await imageService.cleanupFiles([uploadedFile, processedFile]);
+    }
+  }
+
+  /**
+   * 查詢駕照違規記錄（私有方法）
+   * @param {string} idNumber - 身分證字號
+   * @param {string} birthDate - 生日
+   * @returns {Promise<object>} 查詢結果物件
+   * @private
+   */
+  async _checkViolationRecords(idNumber, birthDate) {
+    try {
+      const hasViolation = await webAutomationService.isViolationRecords(
+        idNumber,
+        birthDate,
+        {
+          maxRetries: 10
+        }
+      );
+      return {
+        success: true,
+        hasViolation: hasViolation,
+        message: hasViolation ? '查詢成功，有違規記錄' : '查詢成功，無違規記錄'
+      };
+    } catch (autoError) {
+      console.error('查詢違規記錄失敗:', autoError);
+      return {
+        success: false,
+        message: autoError.message || '查詢違規記錄失敗',
+        errors: [autoError.message]
+      };
     }
   }
 }

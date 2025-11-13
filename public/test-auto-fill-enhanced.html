@@ -209,6 +209,15 @@
             color: #666;
         }
 
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
         button {
             width: 100%;
             padding: 15px;
@@ -436,15 +445,19 @@
         <!-- URL Tab -->
         <div class="tab-content" id="url-tab">
             <div class="url-input-area">
-                <h3 style="color: #333; margin-bottom: 15px; font-size: 16px;">🪪 身分證圖片 URL</h3>
-                <div class="url-input-group">
-                    <input type="text" id="urlInput" placeholder="請輸入身分證圖片的 URL (例如: https://example.com/id-card.jpg)">
-                </div>
+                <form id="urlForm">
+                    <h3 style="color: #333; margin-bottom: 15px; font-size: 16px;">🪪 身分證圖片 URL</h3>
+                    <div class="url-input-group">
+                        <input type="url" id="urlInput" placeholder="請輸入身分證圖片的 URL (例如: https://example.com/id-card.jpg)" required>
+                    </div>
 
-                <h3 style="color: #333; margin: 20px 0 15px 0; font-size: 16px;">🚗 駕照圖片 URL (選填)</h3>
-                <div class="url-input-group">
-                    <input type="text" id="drivingLicenseUrlInput" placeholder="請輸入駕照圖片的 URL (選填)">
-                </div>
+                    <h3 style="color: #333; margin: 20px 0 15px 0; font-size: 16px;">🚗 駕照圖片 URL (選填)</h3>
+                    <div class="url-input-group">
+                        <input type="url" id="drivingLicenseUrlInput" placeholder="請輸入駕照圖片的 URL (選填)">
+                    </div>
+
+                    <button type="submit" style="margin-top: 15px;">🔍 開始辨識</button>
+                </form>
 
                 <div class="url-examples">
                     <div class="url-examples-title">💡 範例 URL (點擊使用):</div>
@@ -473,29 +486,6 @@
             <!-- 駕照辨識結果 -->
             <div class="result" id="drivingLicenseResult" style="margin-top: 20px;"></div>
         </div>
-
-        <div class="options">
-            <div class="option">
-                <label>
-                    <input type="checkbox" id="autoFillForm">
-                    <div class="option-text">
-                        <span class="option-title">啟用自動填寫</span>
-                        <span class="option-desc">辨識後自動打開監理服務網並填寫表單</span>
-                    </div>
-                </label>
-            </div>
-            <div class="option">
-                <label>
-                    <input type="checkbox" id="keepBrowserAlive" checked>
-                    <div class="option-text">
-                        <span class="option-title">保持瀏覽器開啟</span>
-                        <span class="option-desc">等待手動輸入驗證碼 (建議勾選)</span>
-                    </div>
-                </label>
-            </div>
-        </div>
-
-        <button id="submitBtn" disabled>請先選擇圖片或輸入 URL</button>
 
         <div class="loading" id="loading">
             <div class="spinner"></div>
@@ -527,23 +517,28 @@
                         const urlInput = document.getElementById('urlInput');
                         if (urlInput) {
                             urlInput.value = imageUrl;
-                            loadUrlPreview(imageUrl);
                         }
                     }
 
-                    // 填入駕照 URL (使用更長的延遲確保圖片載入)
+                    // 填入駕照 URL
                     if (drivingLicenseUrl) {
+                        const drivingLicenseUrlInput = document.getElementById('drivingLicenseUrlInput');
+                        if (drivingLicenseUrlInput) {
+                            drivingLicenseUrlInput.value = drivingLicenseUrl;
+                        }
+                    }
+
+                    // 從快照載入時自動觸發 form submit
+                    if (imageUrl) {
                         setTimeout(() => {
-                            const drivingLicenseUrlInput = document.getElementById('drivingLicenseUrlInput');
-                            if (drivingLicenseUrlInput) {
-                                drivingLicenseUrlInput.value = drivingLicenseUrl;
-                                loadDrivingLicensePreview(drivingLicenseUrl);
+                            const urlForm = document.getElementById('urlForm');
+                            if (urlForm) {
+                                urlForm.requestSubmit(); // 觸發 submit 事件
                             }
-                        }, 500); // 延遲 500ms 確保身分證圖片先載入
+                        }, 300); // 延遲確保 DOM 更新完成
                     }
 
                     // 更新提交按鈕
-                    updateSubmitButton();
 
                     // 如果有使用者名稱,顯示訊息
                     if (userName) {
@@ -570,7 +565,6 @@
                 tab.classList.add('active');
                 document.getElementById(`${tabName}-tab`).classList.add('active');
 
-                updateSubmitButton();
             });
         });
 
@@ -615,7 +609,6 @@
             }
 
             selectedFile = file;
-            updateSubmitButton();
 
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -633,59 +626,12 @@
         const urlPreviewInfo = document.getElementById('urlPreviewInfo');
         const urlExamples = document.querySelectorAll('.url-example');
 
-        // 身分證 URL 輸入監聽 (支援多種事件以相容手機瀏覽器)
-        if (urlInput) {
-            const handleIdCardInput = () => {
-                updateSubmitButton();
-                const url = urlInput.value.trim();
-                console.log('身分證 URL 輸入:', url);
-                if (url) {
-                    loadUrlPreview(url);
-                } else {
-                    urlPreview.classList.remove('active');
-                }
-            };
-
-            // 監聽多種事件以確保手機瀏覽器相容性
-            urlInput.addEventListener('input', handleIdCardInput);
-            urlInput.addEventListener('change', handleIdCardInput);
-            urlInput.addEventListener('paste', (e) => {
-                setTimeout(handleIdCardInput, 100); // 延遲執行以確保貼上的內容已經填入
-            });
-            urlInput.addEventListener('blur', handleIdCardInput);
-        }
-
-        // 駕照 URL 輸入監聽 (支援多種事件以相容手機瀏覽器)
-        const drivingLicenseUrlInput = document.getElementById('drivingLicenseUrlInput');
-        if (drivingLicenseUrlInput) {
-            const handleDrivingLicenseInput = () => {
-                updateSubmitButton();
-                const url = drivingLicenseUrlInput.value.trim();
-                console.log('駕照 URL 輸入:', url);
-                if (url) {
-                    loadDrivingLicensePreview(url);
-                } else {
-                    drivingLicensePreview.classList.remove('active');
-                }
-            };
-
-            // 監聽多種事件以確保手機瀏覽器相容性
-            drivingLicenseUrlInput.addEventListener('input', handleDrivingLicenseInput);
-            drivingLicenseUrlInput.addEventListener('change', handleDrivingLicenseInput);
-            drivingLicenseUrlInput.addEventListener('paste', (e) => {
-                setTimeout(handleDrivingLicenseInput, 100); // 延遲執行以確保貼上的內容已經填入
-            });
-            drivingLicenseUrlInput.addEventListener('blur', handleDrivingLicenseInput);
-        } else {
-            console.error('找不到 drivingLicenseUrlInput 元素');
-        }
-
         urlExamples.forEach(example => {
             example.addEventListener('click', () => {
                 const url = example.dataset.url;
                 urlInput.value = url;
-                updateSubmitButton();
-                loadUrlPreview(url);
+                // 只填入 URL，不自動觸發辨識
+                // 用戶需要按 Enter 或點擊「開始辨識」按鈕
             });
         });
 
@@ -722,6 +668,32 @@
             };
         }
 
+        // Form 提交監聽 - 只在按下 Enter 或點擊按鈕時觸發
+        const urlForm = document.getElementById('urlForm');
+        const drivingLicenseUrlInput = document.getElementById('drivingLicenseUrlInput');
+
+        if (urlForm) {
+            urlForm.addEventListener('submit', (e) => {
+                e.preventDefault(); // 防止頁面重新載入
+
+                const idCardUrl = urlInput.value.trim();
+                const drivingLicenseUrl = drivingLicenseUrlInput.value.trim();
+
+                console.log('表單提交 - 身分證 URL:', idCardUrl);
+                console.log('表單提交 - 駕照 URL:', drivingLicenseUrl);
+
+                // 載入身分證預覽並辨識
+                if (idCardUrl) {
+                    loadUrlPreview(idCardUrl);
+                }
+
+                // 載入駕照預覽並辨識（如果有填寫）
+                if (drivingLicenseUrl) {
+                    loadDrivingLicensePreview(drivingLicenseUrl);
+                }
+            });
+        }
+
         // 自動辨識身分證
         async function analyzeIDCard(imageUrl) {
             const idCardResult = document.getElementById('idCardResult');
@@ -744,8 +716,7 @@
                     },
                     body: JSON.stringify({
                         imageUrl: imageUrl,
-                        autoFillForm: false,
-                        keepBrowserAlive: false
+                        autoFillForm: true,
                     })
                 });
 
@@ -852,6 +823,43 @@
                     </div>
                 `;
 
+                // 顯示違規記錄查詢結果
+                if (data.automation) {
+                    html += `
+                        <div class="result-content" style="margin-top: 15px;">
+                            <div class="result-section">
+                                <div class="result-section-title">🚗 違規記錄查詢結果</div>
+                    `;
+
+                    if (data.automation.success) {
+                        const hasViolation = data.automation.hasViolation;
+                        const statusClass = hasViolation ? 'error' : 'success';
+                        const statusIcon = hasViolation ? '⚠️' : '✅';
+                        const statusText = hasViolation ? '有違規記錄' : '無違規記錄';
+
+                        html += `
+                                <div class="result-item" style="padding: 15px; background: ${hasViolation ? '#fff3cd' : '#d4edda'}; border-radius: 8px; border-left: 4px solid ${hasViolation ? '#ffc107' : '#28a745'};">
+                                    <div class="result-value" style="font-size: 16px; font-weight: bold; color: ${hasViolation ? '#856404' : '#155724'};">
+                                        ${statusIcon} ${statusText}
+                                    </div>
+                                </div>
+                        `;
+                    } else {
+                        html += `
+                                <div class="result-item" style="padding: 15px; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545;">
+                                    <div class="result-value" style="color: #721c24;">
+                                        ❌ 查詢失敗：${data.automation.message || '無法查詢違規記錄'}
+                                    </div>
+                                </div>
+                        `;
+                    }
+
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                }
+
                 // 如果是手機瀏覽器，新增開啟監理所網站按鈕
                 if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
                     html += `
@@ -902,8 +910,7 @@
                     },
                     body: JSON.stringify({
                         imageUrl: imageUrl,
-                        autoFillForm: false,
-                        keepBrowserAlive: false
+                        autoFillForm: true,
                     })
                 });
 
@@ -999,19 +1006,6 @@
         const autoFillForm = document.getElementById('autoFillForm');
         const keepBrowserAlive = document.getElementById('keepBrowserAlive');
 
-        function updateSubmitButton() {
-            const activeTab = document.querySelector('.tab.active').dataset.tab;
-
-            if (activeTab === 'upload') {
-                submitBtn.disabled = !selectedFile;
-                submitBtn.textContent = selectedFile ? '開始辨識' : '請先選擇圖片';
-            } else {
-                const hasUrl = urlInput.value.trim() !== '';
-                submitBtn.disabled = !hasUrl;
-                submitBtn.textContent = hasUrl ? '開始辨識' : '請先輸入 URL';
-            }
-        }
-
         submitBtn.addEventListener('click', async () => {
             console.log('開始辨識按鈕被點擊');
             const activeTab = document.querySelector('.tab.active').dataset.tab;
@@ -1044,7 +1038,6 @@
                 const formData = new FormData();
                 formData.append('image', selectedFile);
                 formData.append('autoFillForm', autoFillForm.checked);
-                formData.append('keepBrowserAlive', keepBrowserAlive.checked);
 
                 const response = await fetch('/api/verify/upload', {
                     method: 'POST',
@@ -1086,8 +1079,7 @@
                     },
                     body: JSON.stringify({
                         imageUrl: url,
-                        autoFillForm: autoFillForm.checked,
-                        keepBrowserAlive: keepBrowserAlive.checked
+                        autoFillForm: true,
                     })
                 });
 
