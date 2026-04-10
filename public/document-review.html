@@ -572,6 +572,225 @@
                 font-size: 16px; /* 避免 iOS Safari 自動縮放 */
             }
         }
+
+        /* Tab 切換樣式 */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 0;
+            background: #f8f9ff;
+        }
+
+        .tab-btn {
+            padding: 15px 30px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            font-size: 16px;
+            font-weight: bold;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: -2px;
+        }
+
+        .tab-btn:hover {
+            color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* 查詢使用者區域 */
+        .search-user-form {
+            max-width: 600px;
+            margin: 0 auto 30px;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .search-input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-input-group input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .search-input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .search-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* 使用者資訊卡片 */
+        .user-result-card {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+            overflow: hidden;
+        }
+
+        .user-result-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+        }
+
+        .user-result-header h3 {
+            margin: 0 0 5px 0;
+            font-size: 18px;
+        }
+
+        .user-result-body {
+            padding: 20px;
+        }
+
+        .info-row {
+            display: flex;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+            align-items: center;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            width: 120px;
+            font-weight: bold;
+            color: #666;
+            flex-shrink: 0;
+        }
+
+        .info-value {
+            flex: 1;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .copy-btn {
+            padding: 4px 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: #5568d3;
+        }
+
+        .copy-btn.copied {
+            background: #28a745;
+        }
+
+        .section-divider {
+            margin: 20px 0;
+            padding: 10px 0;
+            border-top: 2px dashed #e0e0e0;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .analyzing-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #fff3cd;
+            color: #856404;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        /* 手機響應式 Tab */
+        @media (max-width: 768px) {
+            .tabs {
+                flex-direction: row;
+                overflow-x: auto;
+            }
+
+            .tab-btn {
+                padding: 12px 20px;
+                font-size: 14px;
+                flex: 1;
+                text-align: center;
+            }
+
+            .search-input-group {
+                flex-direction: column;
+            }
+
+            .search-btn {
+                width: 100%;
+            }
+
+            .info-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+
+            .info-label {
+                width: auto;
+            }
+        }
     </style>
 </head>
 <body>
@@ -588,21 +807,21 @@
                 <button class="env-btn" data-env="prod">Prod 環境</button>
             </div>
 
-            <div class="login-form">
+            <form class="login-form" id="loginForm" autocomplete="on">
                 <div id="loginError"></div>
 
                 <div class="form-group">
-                    <label>帳號 (Email)</label>
-                    <input type="email" id="emailInput" placeholder="請輸入帳號" required>
+                    <label for="emailInput">帳號 (Email)</label>
+                    <input type="email" id="emailInput" name="email" placeholder="請輸入帳號" required autocomplete="email">
                 </div>
 
                 <div class="form-group">
-                    <label>密碼</label>
-                    <input type="password" id="passwordInput" placeholder="請輸入密碼" required>
+                    <label for="passwordInput">密碼</label>
+                    <input type="password" id="passwordInput" name="password" placeholder="請輸入密碼" required autocomplete="current-password">
                 </div>
 
-                <button class="login-btn" id="loginBtn">登入</button>
-            </div>
+                <button type="submit" class="login-btn" id="loginBtn">登入</button>
+            </form>
         </div>
 
         <!-- 主要內容區域 -->
@@ -615,45 +834,83 @@
                 <button class="logout-btn" id="logoutBtn">登出</button>
             </div>
 
-            <div class="content-area">
-                <div class="controls">
-                    <button class="refresh-btn" id="refreshBtn">🔄 重新整理</button>
-                </div>
+            <!-- Tab 切換按鈕 -->
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="review">證件審核</button>
+                <button class="tab-btn" data-tab="search">查詢使用者</button>
+            </div>
 
-                <div class="stats">
-                    <div class="stat-card">
-                        <div class="label">待審核證件</div>
-                        <div class="value" id="totalCount">0</div>
+            <!-- 證件審核 Tab 內容 -->
+            <div class="tab-content active" id="tab-review">
+                <div class="content-area">
+                    <div class="controls">
+                        <button class="refresh-btn" id="refreshBtn">🔄 重新整理</button>
                     </div>
-                    <div class="stat-card">
-                        <div class="label">已載入</div>
-                        <div class="value" id="loadedCount">0</div>
+
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="label">待審核證件</div>
+                            <div class="value" id="totalCount">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">已載入</div>
+                            <div class="value" id="loadedCount">0</div>
+                        </div>
+                    </div>
+
+                    <div id="messageArea"></div>
+
+                    <div class="document-list">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>使用者名稱</th>
+                                    <th>Email</th>
+                                    <th>手機</th>
+                                    <th>上傳時間</th>
+                                    <th>證件狀態</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="documentTableBody">
+                                <tr>
+                                    <td colspan="6" class="loading">
+                                        <div class="spinner"></div>
+                                        載入中...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
+            </div>
 
-                <div id="messageArea"></div>
+            <!-- 查詢使用者 Tab 內容 -->
+            <div class="tab-content" id="tab-search">
+                <div class="content-area">
+                    <div class="search-user-form">
+                        <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #333;">輸入使用者 ID</label>
+                        <div class="search-input-group">
+                            <input type="text" id="userIdInput" name="userIdInput_noautofill" placeholder="請輸入 userId" autocomplete="off" data-lpignore="true" data-form-type="other">
+                            <button class="search-btn" id="searchUserBtn">🔍 查詢</button>
+                        </div>
+                    </div>
 
-                <div class="document-list">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>使用者名稱</th>
-                                <th>Email</th>
-                                <th>手機</th>
-                                <th>上傳時間</th>
-                                <th>證件狀態</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="documentTableBody">
-                            <tr>
-                                <td colspan="6" class="loading">
-                                    <div class="spinner"></div>
-                                    載入中...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div class="search-user-form" style="margin-top: 12px;">
+                        <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #333;">依名稱查詢</label>
+                        <div class="search-input-group">
+                            <input type="text" id="displayNameInput" name="displayNameInput_noautofill" placeholder="請輸入使用者名稱" autocomplete="off" data-lpignore="true" data-form-type="other">
+                            <button class="search-btn" id="searchByNameBtn">🔍 名稱查詢</button>
+                        </div>
+                    </div>
+
+                    <div id="searchMessageArea"></div>
+
+                    <!-- 名稱查詢結果列表 -->
+                    <div id="nameSearchResultArea"></div>
+
+                    <!-- 查詢結果區域 -->
+                    <div id="searchResultArea"></div>
                 </div>
             </div>
         </div>
@@ -694,6 +951,8 @@
         let authToken = null;
         let userEmail = null;
         let documentList = [];
+        let currentSearchUserId = null;  // 當前查詢的使用者 ID
+        let currentSearchUserData = null; // 當前查詢的使用者資料
 
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
@@ -711,13 +970,10 @@
                 });
             });
 
-            // 登入
-            document.getElementById('loginBtn').addEventListener('click', handleLogin);
-            document.getElementById('emailInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') handleLogin();
-            });
-            document.getElementById('passwordInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') handleLogin();
+            // 登入 (使用 form submit 以支援瀏覽器記憶密碼)
+            document.getElementById('loginForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                handleLogin();
             });
 
             // 登出
@@ -725,6 +981,536 @@
 
             // 重新整理
             document.getElementById('refreshBtn').addEventListener('click', loadDocuments);
+
+            // Tab 切換
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tabId = this.dataset.tab;
+                    switchTab(tabId);
+                });
+            });
+
+            // 查詢使用者
+            document.getElementById('searchUserBtn').addEventListener('click', searchUser);
+            document.getElementById('userIdInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') searchUser();
+            });
+
+            // 名稱查詢
+            document.getElementById('searchByNameBtn').addEventListener('click', searchUserByName);
+            document.getElementById('displayNameInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') searchUserByName();
+            });
+        }
+
+        // Tab 切換功能
+        function switchTab(tabId) {
+            // 更新 Tab 按鈕狀態
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.tab === tabId) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // 更新 Tab 內容顯示
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+        }
+
+        // 查詢使用者功能 (by userId input)
+        async function searchUser() {
+            const userId = document.getElementById('userIdInput').value.trim();
+            if (!userId) {
+                showSearchError('請輸入使用者 ID');
+                return;
+            }
+            const searchBtn = document.getElementById('searchUserBtn');
+            searchBtn.disabled = true;
+            searchBtn.textContent = '查詢中...';
+            try {
+                await searchUserById(userId);
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.textContent = '🔍 查詢';
+            }
+        }
+
+        // 依 userId 查詢使用者（核心邏輯）
+        async function searchUserById(userId) {
+            const resultArea = document.getElementById('searchResultArea');
+            const messageArea = document.getElementById('searchMessageArea');
+
+            messageArea.innerHTML = '';
+            resultArea.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    正在查詢使用者資料...
+                </div>
+            `;
+
+            try {
+                const config = ENV_CONFIG[currentEnv];
+
+                const response = await fetch(config.graphqlUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                        'x-api-key': config.apiKey
+                    },
+                    body: JSON.stringify({
+                        query: `query RentalUserDetail($filter: RentalUsersFilter!, $orderBy: [UsersOrder!]!) {
+                            RentalUsersQuery {
+                                rentalUsers(filter: $filter, orderBy: $orderBy) {
+                                    edges {
+                                        node {
+                                            userId
+                                            displayName
+                                            email
+                                            phone
+                                            rentalCertificates {
+                                                certificateType
+                                                status
+                                                expiredAt
+                                                url
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }`,
+                        variables: {
+                            filter: {
+                                organization: 'KYMCO_TW',
+                                userId: userId
+                            },
+                            orderBy: [{ direction: 'DESC', field: 'USER_ID' }]
+                        }
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.errors) {
+                    throw new Error(result.errors[0].message);
+                }
+
+                const users = result.data.RentalUsersQuery.rentalUsers.edges;
+
+                if (users.length === 0) {
+                    resultArea.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🔍</div>
+                            <div>找不到此使用者</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const user = users[0].node;
+
+                currentSearchUserId = user.userId;
+                currentSearchUserData = {
+                    userId: user.userId,
+                    displayName: user.displayName || '',
+                    email: user.email || ''
+                };
+
+                const idCardFront = user.rentalCertificates?.find(
+                    cert => cert.certificateType === 'ID_CARD_FRONT'
+                );
+
+                renderUserResult(user, idCardFront);
+
+            } catch (error) {
+                console.error('查詢使用者錯誤:', error);
+                showSearchError('查詢失敗: ' + error.message);
+                resultArea.innerHTML = '';
+            }
+        }
+
+        // 依名稱查詢使用者
+        async function searchUserByName() {
+            const displayName = document.getElementById('displayNameInput').value.trim();
+            const searchBtn = document.getElementById('searchByNameBtn');
+            const nameResultArea = document.getElementById('nameSearchResultArea');
+            const messageArea = document.getElementById('searchMessageArea');
+
+            if (!displayName) {
+                showSearchError('請輸入使用者名稱');
+                return;
+            }
+
+            searchBtn.disabled = true;
+            searchBtn.textContent = '查詢中...';
+            messageArea.innerHTML = '';
+            nameResultArea.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    正在搜尋使用者...
+                </div>
+            `;
+            document.getElementById('searchResultArea').innerHTML = '';
+
+            try {
+                const config = ENV_CONFIG[currentEnv];
+
+                const response = await fetch(config.graphqlUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                        'x-api-key': config.apiKey
+                    },
+                    body: JSON.stringify({
+                        operationName: 'TableRentalUsers',
+                        query: `query TableRentalUsers($filter: RentalUsersFilter!, $orderBy: [UsersOrder!]!, $size: Int, $skip: Int) {
+                            RentalUsersQuery {
+                                rentalUsers(filter: $filter, orderBy: $orderBy, size: $size, skip: $skip) {
+                                    edges {
+                                        node {
+                                            userId
+                                            displayName
+                                            email
+                                            phone
+                                        }
+                                    }
+                                    totalCount
+                                }
+                            }
+                        }`,
+                        variables: {
+                            filter: {
+                                displayName: displayName,
+                                organization: 'KYMCO_TW'
+                            },
+                            size: 25,
+                            skip: 0,
+                            orderBy: [{ direction: 'DESC', field: 'USER_ID' }]
+                        }
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.errors) {
+                    throw new Error(result.errors[0].message);
+                }
+
+                const users = result.data.RentalUsersQuery.rentalUsers.edges;
+                const totalCount = result.data.RentalUsersQuery.rentalUsers.totalCount;
+
+                if (users.length === 0) {
+                    nameResultArea.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🔍</div>
+                            <div>找不到符合名稱的使用者</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const rows = users.map(({ node: u }) => `
+                    <tr style="cursor: pointer;" onclick="selectNameSearchUser('${u.userId}', this)">
+                        <td>${u.displayName || '-'}</td>
+                        <td>${u.email || '-'}</td>
+                        <td>${u.phone || '-'}</td>
+                        <td>${u.userId}</td>
+                    </tr>
+                `).join('');
+
+                nameResultArea.innerHTML = `
+                    <div style="margin: 16px 0 8px; font-size: 13px; color: #666;">
+                        共找到 ${totalCount} 位使用者，顯示前 ${users.length} 筆。點擊列表可查看詳細資料。
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table style="width:100%; border-collapse: collapse; font-size: 14px;">
+                            <thead>
+                                <tr style="background: #f5f5f5;">
+                                    <th style="padding: 8px 12px; text-align: left; border-bottom: 2px solid #ddd;">名稱</th>
+                                    <th style="padding: 8px 12px; text-align: left; border-bottom: 2px solid #ddd;">Email</th>
+                                    <th style="padding: 8px 12px; text-align: left; border-bottom: 2px solid #ddd;">手機</th>
+                                    <th style="padding: 8px 12px; text-align: left; border-bottom: 2px solid #ddd;">User ID</th>
+                                </tr>
+                            </thead>
+                            <tbody id="nameSearchTableBody">
+                                ${rows}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                // 套用 hover 樣式
+                nameResultArea.querySelectorAll('tbody tr').forEach(tr => {
+                    tr.addEventListener('mouseenter', () => tr.style.background = '#f0f7ff');
+                    tr.addEventListener('mouseleave', () => {
+                        tr.style.background = tr.classList.contains('selected') ? '#dbeafe' : '';
+                    });
+                });
+
+            } catch (error) {
+                console.error('名稱查詢錯誤:', error);
+                showSearchError('查詢失敗: ' + error.message);
+                nameResultArea.innerHTML = '';
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.textContent = '🔍 名稱查詢';
+            }
+        }
+
+        // 從名稱查詢結果選取使用者
+        async function selectNameSearchUser(userId, row) {
+            // 標示已選取列
+            document.querySelectorAll('#nameSearchTableBody tr').forEach(tr => {
+                tr.classList.remove('selected');
+                tr.style.background = '';
+            });
+            row.classList.add('selected');
+            row.style.background = '#dbeafe';
+
+            // 填入 userId 輸入框並查詢詳細資料
+            document.getElementById('userIdInput').value = userId;
+            document.getElementById('searchResultArea').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            await searchUserById(userId);
+        }
+
+        // 渲染使用者結果
+        async function renderUserResult(user, idCardFront) {
+            const resultArea = document.getElementById('searchResultArea');
+
+            let idCardAnalysisHtml = '';
+            if (idCardFront && idCardFront.url) {
+                idCardAnalysisHtml = `
+                    <div class="section-divider"></div>
+                    <div class="section-title">身分證圖片</div>
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <img src="${idCardFront.url}" alt="身分證正面"
+                             style="max-width: 100%; max-height: 300px; border-radius: 8px; border: 2px solid #e0e0e0; cursor: pointer;"
+                             onclick="window.open('${idCardFront.url}', '_blank')"
+                             title="點擊放大檢視">
+                        <div style="font-size: 12px; color: #666; margin-top: 5px;">點擊圖片可放大檢視</div>
+                    </div>
+                    <div class="section-title">證件分析結果</div>
+                    <div id="idCardAnalysisResult">
+                        <div class="loading" style="padding: 20px;">
+                            <div class="spinner"></div>
+                            正在分析身分證圖片...
+                        </div>
+                    </div>
+                `;
+            } else {
+                idCardAnalysisHtml = `
+                    <div class="section-divider"></div>
+                    <div class="section-title">證件分析結果</div>
+                    <div style="color: #999; padding: 20px; text-align: center;">
+                        此使用者尚未上傳身分證正面圖片
+                    </div>
+                `;
+            }
+
+            resultArea.innerHTML = `
+                <div class="user-result-card">
+                    <div class="user-result-header">
+                        <h3>使用者資訊</h3>
+                        <div style="font-size: 12px; opacity: 0.8;">User ID: ${user.userId}</div>
+                    </div>
+                    <div class="user-result-body">
+                        <div class="section-title">基本資料</div>
+                        <div class="info-row">
+                            <div class="info-label">顯示名稱</div>
+                            <div class="info-value">${user.displayName || '-'}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Email</div>
+                            <div class="info-value">${user.email || '-'}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">手機號碼</div>
+                            <div class="info-value">${user.phone || '-'}</div>
+                        </div>
+                        ${idCardAnalysisHtml}
+                    </div>
+                </div>
+            `;
+
+            // 如果有身分證圖片，開始分析（傳入 displayName 輔助）
+            if (idCardFront && idCardFront.url) {
+                await analyzeIdCard(idCardFront.url, user.displayName);
+            }
+        }
+
+        // 分析身分證
+        async function analyzeIdCard(imageUrl, displayName = null) {
+            const analysisResultEl = document.getElementById('idCardAnalysisResult');
+
+            try {
+                const response = await fetch('/api/verify/url', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        imageUrl: imageUrl,
+                        documentType: 'id_card',  // 強制使用身分證解析器
+                        displayName: displayName  // 輔助姓名辨識（格式可能是名+姓）
+                    })
+                });
+
+                const result = await response.json();
+
+                // 只要有 data 物件就嘗試顯示結果（即使 success 為 false）
+                const name = result.data?.name || '';
+                const idNumber = result.data?.idNumber || '';
+
+                analysisResultEl.innerHTML = `
+                    <div class="info-row">
+                        <div class="info-label">姓名</div>
+                        <div class="info-value">
+                            <input type="text" id="edit-idName" value="${name}" placeholder="請輸入姓名" style="flex:1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            ${name ? `<button class="copy-btn" onclick="copyToClipboard(document.getElementById('edit-idName').value, this)">複製</button>` : ''}
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">身分證字號</div>
+                        <div class="info-value">
+                            <input type="text" id="edit-idNumber" value="${idNumber}" placeholder="請輸入身分證字號" style="flex:1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            ${idNumber ? `<button class="copy-btn" onclick="copyToClipboard(document.getElementById('edit-idNumber').value, this)">複製</button>` : ''}
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <label style="display: flex; align-items: center; gap: 5px; font-size: 14px; cursor: pointer;">
+                            <input type="checkbox" id="isRentalUser" style="width: 16px; height: 16px; cursor: pointer;">
+                            僅為租賃使用者
+                        </label>
+                        <button class="action-btn" onclick="saveUserIdData()" style="background: #28a745;">
+                            💾 儲存到 JSON
+                        </button>
+                        <span id="save-status" style="font-size: 12px; color: #666;"></span>
+                    </div>
+                    ${result.confidence ? `
+                        <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                            辨識信心度: ${Math.round(result.confidence * 100)}%
+                            ${!result.success ? ' (部分辨識)' : ''}
+                        </div>
+                    ` : ''}
+                `;
+            } catch (error) {
+                console.error('證件分析錯誤:', error);
+                analysisResultEl.innerHTML = `
+                    <div style="color: #dc3545; padding: 10px;">
+                        證件分析發生錯誤: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // 複製到剪貼簿
+        function copyToClipboard(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = '已複製';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('copied');
+                }, 1500);
+            }).catch(err => {
+                console.error('複製失敗:', err);
+                alert('複製失敗，請手動複製');
+            });
+        }
+
+        // 儲存使用者 ID 資料到 verify_user.json
+        async function saveUserIdData() {
+            if (!currentSearchUserId || !currentSearchUserData) {
+                alert('請先查詢使用者');
+                return;
+            }
+
+            const idName = document.getElementById('edit-idName')?.value?.trim() || '';
+            const idNumber = document.getElementById('edit-idNumber')?.value?.trim() || '';
+            const isRentalUser = document.getElementById('isRentalUser')?.checked || false;
+            const statusEl = document.getElementById('save-status');
+
+            // 如果只勾選租賃使用者，不需要填寫姓名和身分證
+            if (!isRentalUser && !idName && !idNumber) {
+                statusEl.textContent = '請至少填寫一個欄位';
+                statusEl.style.color = '#dc3545';
+                return;
+            }
+
+            statusEl.textContent = '儲存中...';
+            statusEl.style.color = '#666';
+
+            try {
+                let messages = [];
+
+                // 如果有填寫姓名或身分證，儲存到 verify_user.json
+                if (idName || idNumber) {
+                    const response = await fetch('/api/verify-user/update', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            userId: currentSearchUserId,
+                            displayName: currentSearchUserData.displayName,
+                            email: currentSearchUserData.email,
+                            idName: idName || null,
+                            idNumber: idNumber || null
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        messages.push(result.isNewUser ? '驗證資料新增成功' : '驗證資料更新成功');
+                    } else {
+                        throw new Error(result.error || '驗證資料儲存失敗');
+                    }
+                }
+
+                // 如果勾選租賃使用者，儲存到 rental_user.json
+                if (isRentalUser) {
+                    const rentalResponse = await fetch('/api/rental-user/add', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            userId: currentSearchUserId,
+                            email: currentSearchUserData.email
+                        })
+                    });
+
+                    const rentalResult = await rentalResponse.json();
+
+                    if (rentalResult.success) {
+                        messages.push(rentalResult.isNew ? '租賃使用者新增成功' : '租賃使用者已存在');
+                    } else {
+                        throw new Error(rentalResult.error || '租賃使用者儲存失敗');
+                    }
+                }
+
+                statusEl.textContent = '✓ ' + messages.join(', ');
+                statusEl.style.color = '#28a745';
+            } catch (error) {
+                console.error('儲存失敗:', error);
+                statusEl.textContent = '✗ ' + error.message;
+                statusEl.style.color = '#dc3545';
+            }
+        }
+
+        // 顯示查詢錯誤訊息
+        function showSearchError(message) {
+            const area = document.getElementById('searchMessageArea');
+            area.innerHTML = `<div class="error-message">❌ ${message}</div>`;
+            setTimeout(() => {
+                area.innerHTML = '';
+            }, 5000);
         }
 
         function checkSavedSession() {

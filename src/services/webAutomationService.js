@@ -1,72 +1,9 @@
 require('dotenv/config');
 const { chromium } = require('playwright');
 const path = require('path');
-const { GoogleGenAI } = require('@google/genai');
 const fs = require('fs').promises;
 
 const parserService = require('./parserService');
-
-/**
- * 使用 Google Gemini Vision API 識別驗證碼
- * @param {string} imagePath - 驗證碼圖片路徑
- * @returns {Promise<{text: string, confidence: number}>}
- */
-async function recognizeCaptcha(imagePath) {
-  try {
-    // 檢查 API Key
-    const apiKey = process.env.GOOGLE_API_KEY;
-    if (!apiKey) {
-      console.error('❌ 請設定環境變數 GOOGLE_API_KEY');
-      return { text: '', confidence: 0 };
-    }
-
-    // 初始化 Google GenAI
-    const genAI = new GoogleGenAI({ apiKey });
-
-    console.log('🔍 使用 Google Gemini Vision API 識別驗證碼...');
-
-    // 讀取圖片並轉為 base64
-    const imageBuffer = await fs.readFile(imagePath);
-    const base64Image = imageBuffer.toString('base64');
-
-    // 呼叫 Gemini Vision API
-    const response = await genAI.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: [{
-        role: 'user',
-        parts: [
-          {
-            text: '這是一張驗證碼圖片，包含 4 個字元（大寫英文字母 A-Z 或數字 0-9）。請忽略干擾線，只辨識驗證碼並直接回覆 4 個字元，不要有其他文字。'
-          },
-          {
-            inlineData: {
-              mimeType: 'image/png',
-              data: base64Image
-            }
-          }
-        ]
-      }]
-    });
-
-    const text = response.text || '';
-    const cleanText = text.trim().replace(/\s+/g, '').toUpperCase();
-
-    console.log(`識別結果: "${cleanText}"`);
-
-    // 驗證格式是否正確（4 個字元，只包含 A-Z 和 0-9）
-    if (cleanText.length === 4 && /^[A-Z0-9]{4}$/.test(cleanText)) {
-      console.log(`✅ 識別成功！驗證碼: "${cleanText}"\n`);
-      return { text: cleanText, confidence: 95 };
-    }
-
-    console.log('⚠️  識別結果格式不符，可能需要手動輸入\n');
-    return { text: cleanText, confidence: 50 };
-
-  } catch (error) {
-    console.error('❌ Gemini Vision API 錯誤:', error);
-    return { text: '', confidence: 0 };
-  }
-}
 
 /**
  * 網站自動化服務 - 用於自動填寫監理服務網表單
@@ -219,9 +156,8 @@ class WebAutomationService {
       console.log('✅ 驗證碼圖片已儲存:', captchaImagePath);
       console.log('');
 
-      // 使用 Gemini Vision API 識別驗證碼
-      const captchaResult = await recognizeCaptcha(captchaImagePath);
-      const captchaText = captchaResult.text;
+      // TODO: 實作驗證碼識別
+      const captchaText = '';
 
       // 刪除驗證碼圖片
       try {

@@ -51,11 +51,156 @@ apiRouter.post('/verify/url', idCardController.verifyByUrl.bind(idCardController
 // 透過上傳圖片辨識身分證
 apiRouter.post('/verify/upload', uploadMiddleware, idCardController.verifyByUpload.bind(idCardController));
 
-// 透過 URL 辨識身分證並自動填寫監理服務網表單
-apiRouter.post('/verify-and-fill/url', idCardController.verifyAndFillFormByUrl.bind(idCardController));
+// 更新使用者驗證資料 (verify_user.json)
+apiRouter.post('/verify-user/update', async (req, res) => {
+  const fs = require('fs').promises;
+  const filePath = path.join(__dirname, '..', 'verify_user.json');
 
-// 透過上傳圖片辨識身分證並自動填寫監理服務網表單
-apiRouter.post('/verify-and-fill/upload', uploadMiddleware, idCardController.verifyAndFillFormByUpload.bind(idCardController));
+  try {
+    const { userId, displayName, email, idName, idNumber } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: '請提供 userId'
+      });
+    }
+
+    // 讀取現有資料
+    let users = [];
+    try {
+      const content = await fs.readFile(filePath, 'utf-8');
+      users = JSON.parse(content);
+    } catch (error) {
+      // 如果檔案不存在，建立空陣列
+      users = [];
+    }
+
+    // 找到使用者
+    let userIndex = users.findIndex(u => u.userId === userId);
+    let isNewUser = false;
+
+    // 如果找不到，新增一筆
+    if (userIndex === -1) {
+      const newUser = {
+        userId,
+        displayName: displayName || '',
+        email: email || '',
+        idName: idName || null,
+        idNumber: idNumber || null
+      };
+      users.push(newUser);
+      userIndex = users.length - 1;
+      isNewUser = true;
+      console.log(`新增使用者 ${userId}: displayName=${displayName}, email=${email}`);
+    } else {
+      // 更新現有資料
+      if (idName !== undefined) {
+        users[userIndex].idName = idName || null;
+      }
+      if (idNumber !== undefined) {
+        users[userIndex].idNumber = idNumber || null;
+      }
+      // 如果有傳入 displayName 或 email 也更新
+      if (displayName) {
+        users[userIndex].displayName = displayName;
+      }
+      if (email) {
+        users[userIndex].email = email;
+      }
+    }
+
+    // 寫回檔案
+    await fs.writeFile(filePath, JSON.stringify(users, null, 2), 'utf-8');
+
+    console.log(`已${isNewUser ? '新增' : '更新'}使用者 ${userId}: idName=${idName}, idNumber=${idNumber}`);
+
+    return res.json({
+      success: true,
+      message: isNewUser ? '新增成功' : '更新成功',
+      isNewUser,
+      data: users[userIndex]
+    });
+
+  } catch (error) {
+    console.error('更新使用者資料錯誤:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// 新增租賃使用者到 rental_user.json
+apiRouter.post('/rental-user/add', async (req, res) => {
+  const fs = require('fs').promises;
+  const filePath = path.join(__dirname, '..', 'rental_user.json');
+
+  try {
+    const { userId, email } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: '請提供 userId'
+      });
+    }
+
+    // 讀取現有資料
+    let users = [];
+    try {
+      const content = await fs.readFile(filePath, 'utf-8');
+      users = JSON.parse(content);
+    } catch (error) {
+      // 如果檔案不存在，建立空陣列
+      users = [];
+    }
+
+    // 檢查是否已存在
+    const existingIndex = users.findIndex(u => u.userId === userId);
+
+    if (existingIndex !== -1) {
+      // 已存在，更新 email
+      if (email) {
+        users[existingIndex].email = email;
+        await fs.writeFile(filePath, JSON.stringify(users, null, 2), 'utf-8');
+      }
+      return res.json({
+        success: true,
+        isNew: false,
+        message: '使用者已存在',
+        data: users[existingIndex]
+      });
+    }
+
+    // 新增使用者
+    const newUser = {
+      userId,
+      asp: '',
+      email: email || ''
+    };
+    users.push(newUser);
+
+    // 寫回檔案
+    await fs.writeFile(filePath, JSON.stringify(users, null, 2), 'utf-8');
+
+    console.log(`已新增租賃使用者 ${userId}: email=${email}`);
+
+    return res.json({
+      success: true,
+      isNew: true,
+      message: '新增成功',
+      data: newUser
+    });
+
+  } catch (error) {
+    console.error('新增租賃使用者錯誤:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 // 掛載 API 路由
 app.use('/api', apiRouter);
@@ -70,51 +215,24 @@ app.get('/', (req, res) => {
       health: 'GET /api/health',
       status: 'GET /api/status',
       verifyByUrl: 'POST /api/verify/url',
-      verifyByUpload: 'POST /api/verify/upload',
-      verifyAndFillByUrl: 'POST /api/verify-and-fill/url',
-      verifyAndFillByUpload: 'POST /api/verify-and-fill/upload'
+      verifyByUpload: 'POST /api/verify/upload'
     },
     usage: {
       verifyByUrl: {
         method: 'POST',
         endpoint: '/api/verify/url',
-        description: '辨識身分證 (可選自動填寫表單)',
+        description: '透過圖片 URL 辨識身分證/駕照',
         body: {
-          imageUrl: 'https://example.com/id-card.jpg',
-          autoFillForm: 'boolean (optional, default: false) - 是否自動填寫監理服務網',
-          keepBrowserAlive: 'boolean (optional, default: true) - 自動填寫時是否保持瀏覽器開啟'
+          imageUrl: 'https://example.com/id-card.jpg'
         }
       },
       verifyByUpload: {
         method: 'POST',
         endpoint: '/api/verify/upload',
-        description: '辨識身分證 (可選自動填寫表單)',
+        description: '透過上傳圖片辨識身分證/駕照',
         contentType: 'multipart/form-data',
         fields: {
-          image: 'file (required)',
-          autoFillForm: 'boolean (optional, default: false) - 是否自動填寫監理服務網',
-          keepBrowserAlive: 'boolean (optional, default: true) - 自動填寫時是否保持瀏覽器開啟'
-        }
-      },
-      verifyAndFillByUrl: {
-        method: 'POST',
-        endpoint: '/api/verify-and-fill/url',
-        description: '辨識身分證並強制自動填寫監理服務網表單 (已整合至 /api/verify/url)',
-        note: '建議使用 /api/verify/url 並設定 autoFillForm=true',
-        body: {
-          imageUrl: 'https://example.com/id-card.jpg',
-          keepBrowserAlive: true
-        }
-      },
-      verifyAndFillByUpload: {
-        method: 'POST',
-        endpoint: '/api/verify-and-fill/upload',
-        description: '辨識身分證並強制自動填寫監理服務網表單 (已整合至 /api/verify/upload)',
-        note: '建議使用 /api/verify/upload 並設定 autoFillForm=true',
-        contentType: 'multipart/form-data',
-        fields: {
-          image: 'file',
-          keepBrowserAlive: 'boolean (optional, default: true)'
+          image: 'file (required)'
         }
       }
     }
@@ -153,12 +271,10 @@ const server = app.listen(PORT, () => {
 ✓ 環境: ${process.env.NODE_ENV || 'development'}
 
 API 端點:
-  - GET  /api/health                  健康檢查
-  - GET  /api/status                  系統狀態
-  - POST /api/verify/url              透過 URL 辨識
-  - POST /api/verify/upload           透過上傳辨識
-  - POST /api/verify-and-fill/url     辨識並自動填寫表單 (URL)
-  - POST /api/verify-and-fill/upload  辨識並自動填寫表單 (上傳)
+  - GET  /api/health         健康檢查
+  - GET  /api/status         系統狀態
+  - POST /api/verify/url     透過 URL 辨識
+  - POST /api/verify/upload  透過上傳辨識
 
 按下 Ctrl+C 停止服務
   `);
@@ -174,10 +290,6 @@ const gracefulShutdown = async () => {
     // 關閉 OCR worker
     const ocrService = require('./services/ocrService');
     await ocrService.terminate();
-
-    // 關閉 Web Automation Service
-    const webAutomationService = require('./services/webAutomationService');
-    await webAutomationService.terminate();
 
     console.log('服務已安全關閉');
     process.exit(0);

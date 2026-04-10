@@ -10,11 +10,85 @@ class ImageService {
   }
 
   /**
+   * 創建資源追蹤器
+   * @returns {object} 資源追蹤器物件
+   */
+  createResourceTracker() {
+    const startMemory = process.memoryUsage();
+    const startTime = Date.now();
+
+    return {
+      startTime,
+      startMemory,
+      downloadBytes: 0,
+      processedBytes: 0,
+
+      /**
+       * 記錄下載流量
+       * @param {number} bytes - 下載的位元組數
+       */
+      addDownloadBytes(bytes) {
+        this.downloadBytes += bytes;
+      },
+
+      /**
+       * 記錄處理後的檔案大小
+       * @param {number} bytes - 處理後的位元組數
+       */
+      addProcessedBytes(bytes) {
+        this.processedBytes += bytes;
+      },
+
+      /**
+       * 取得資源使用統計
+       * @returns {object} 統計結果
+       */
+      getStats() {
+        const endMemory = process.memoryUsage();
+        const endTime = Date.now();
+
+        return {
+          // 時間統計
+          processingTimeMs: endTime - startTime,
+          processingTimeSec: ((endTime - startTime) / 1000).toFixed(2),
+
+          // 流量統計
+          downloadBytes: this.downloadBytes,
+          downloadKB: (this.downloadBytes / 1024).toFixed(2),
+          downloadMB: (this.downloadBytes / (1024 * 1024)).toFixed(4),
+
+          processedBytes: this.processedBytes,
+          processedKB: (this.processedBytes / 1024).toFixed(2),
+
+          // 記憶體統計 (bytes)
+          memory: {
+            heapUsedStart: startMemory.heapUsed,
+            heapUsedEnd: endMemory.heapUsed,
+            heapUsedDiff: endMemory.heapUsed - startMemory.heapUsed,
+            heapUsedDiffMB: ((endMemory.heapUsed - startMemory.heapUsed) / (1024 * 1024)).toFixed(2),
+
+            rssStart: startMemory.rss,
+            rssEnd: endMemory.rss,
+            rssDiff: endMemory.rss - startMemory.rss,
+            rssDiffMB: ((endMemory.rss - startMemory.rss) / (1024 * 1024)).toFixed(2),
+
+            // 當前記憶體使用
+            currentHeapUsedMB: (endMemory.heapUsed / (1024 * 1024)).toFixed(2),
+            currentRssMB: (endMemory.rss / (1024 * 1024)).toFixed(2),
+            currentExternalMB: (endMemory.external / (1024 * 1024)).toFixed(2)
+          }
+        };
+      }
+    };
+  }
+
+  /**
    * 從 URL 下載圖片
    * @param {string} imageUrl - 圖片 URL
+   * @param {object} tracker - 資源追蹤器 (可選)
    * @returns {Promise<string>} 下載後的檔案路徑
    */
-  async downloadFromUrl(imageUrl) {
+  async downloadFromUrl(imageUrl, tracker = null) {
     try {
       // 驗證 URL 格式
       const url = new URL(imageUrl);
@@ -35,6 +109,13 @@ class ImageService {
           'User-Agent': 'Ionex-ID-Verify/1.0'
         }
       });
+
+      // 記錄下載流量
+      const downloadSize = response.data.length;
+      if (tracker) {
+        tracker.addDownloadBytes(downloadSize);
+      }
+      console.log(`下載流量: ${(downloadSize / 1024).toFixed(2)} KB`);
 
       // 生成唯一檔案名
       const filename = `${uuidv4()}.jpg`;

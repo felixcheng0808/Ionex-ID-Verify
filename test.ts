@@ -3,7 +3,6 @@ import { chromium } from 'playwright';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { GoogleGenAI } from '@google/genai';
 import fs from 'fs/promises';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -12,66 +11,6 @@ const __dirname = dirname(__filename);
 interface FormData {
   idNumber: string;      // 身份證字號 格式: [A-Z](1|2)\d{8}
   birthday: string;      // 生日 格式: 民國年YYYMMDD，例如 0780702
-}
-
-/**
- * 使用 Google Gemini Vision API 識別驗證碼
- */
-async function recognizeCaptcha(imagePath: string): Promise<{text: string, confidence: number}> {
-  try {
-    // 檢查 API Key
-    const apiKey = process.env.GOOGLE_API_KEY;
-    if (!apiKey) {
-      console.error('❌ 請設定環境變數 GOOGLE_API_KEY');
-      return { text: '', confidence: 0 };
-    }
-
-    // 初始化 Google GenAI
-    const genAI = new GoogleGenAI({ apiKey });
-
-    console.log('🔍 使用 Google Gemini Vision API 識別驗證碼...');
-
-    // 讀取圖片並轉為 base64
-    const imageBuffer = await fs.readFile(imagePath);
-    const base64Image = imageBuffer.toString('base64');
-
-    // 呼叫 Gemini Vision API
-    const response = await genAI.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: [{
-        role: 'user',
-        parts: [
-          {
-            text: '這是一張驗證碼圖片，包含 4 個字元（大寫英文字母 A-Z 或數字 0-9）。請忽略干擾線，只辨識驗證碼並直接回覆 4 個字元，不要有其他文字。'
-          },
-          {
-            inlineData: {
-              mimeType: 'image/png',
-              data: base64Image
-            }
-          }
-        ]
-      }]
-    });
-
-    const text = response.text || '';
-    const cleanText = text.trim().replace(/\s+/g, '').toUpperCase();
-
-    console.log(`識別結果: "${cleanText}"`);
-
-    // 驗證格式是否正確（4 個字元，只包含 A-Z 和 0-9）
-    if (cleanText.length === 4 && /^[A-Z0-9]{4}$/.test(cleanText)) {
-      console.log(`✅ 識別成功！驗證碼: "${cleanText}"\n`);
-      return { text: cleanText, confidence: 95 };
-    }
-
-    console.log('⚠️  識別結果格式不符，可能需要手動輸入\n');
-    return { text: cleanText, confidence: 50 };
-
-  } catch (error) {
-    console.error('❌ Gemini Vision API 錯誤:', error);
-    return { text: '', confidence: 0 };
-  }
 }
 
 /**
@@ -145,9 +84,8 @@ async function attemptFillForm(formData: FormData, headless: boolean = true): Pr
       console.log('✅ 驗證碼圖片已儲存:', captchaImagePath);
       console.log('');
 
-      // 使用 Gemini Vision API 識別驗證碼
-      const result = await recognizeCaptcha(captchaImagePath);
-      const captchaText = result.text;
+      // TODO: 實作驗證碼識別
+      const captchaText = '';
 
       // 刪除驗證碼圖片
       try {

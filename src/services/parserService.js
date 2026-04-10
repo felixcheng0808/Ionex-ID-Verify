@@ -16,6 +16,19 @@ class ParserService {
       '新竹縣', '苗栗縣', '彰化縣', '南投縣', '雲林縣', '嘉義縣',
       '屏東縣', '宜蘭縣', '花蓮縣', '台東縣', '澎湖縣', '金門縣', '連江縣'
     ];
+
+    // 台灣常見姓氏（前100大姓）
+    this.commonSurnames = [
+      '陳', '林', '黃', '張', '李', '王', '吳', '劉', '蔡', '楊',
+      '許', '鄭', '謝', '郭', '洪', '曾', '邱', '廖', '賴', '周',
+      '徐', '蘇', '葉', '莊', '呂', '江', '何', '蕭', '羅', '高',
+      '潘', '簡', '朱', '鍾', '游', '彭', '詹', '胡', '施', '沈',
+      '余', '趙', '盧', '梁', '顏', '柯', '翁', '魏', '孫', '戴',
+      '范', '方', '宋', '鄧', '杜', '傅', '侯', '曹', '薛', '丁',
+      '卓', '馬', '阮', '董', '温', '唐', '藍', '石', '蔣', '古',
+      '紀', '姚', '連', '馮', '歐', '程', '湯', '黄', '田', '康',
+      '姜', '白', '汪', '鄒', '尤', '巫', '鑽', '錢', '凃', '塗'
+    ];
   }
 
   /**
@@ -23,11 +36,16 @@ class ParserService {
    * @param {object} ocrResult - OCR 辨識結果
    * @returns {object} 解析後的身分證資訊
    */
-  parseIDCard(ocrResult) {
+  parseIDCard(ocrResult, options = {}) {
     const text = ocrResult.text || '';
     const lines = ocrResult.lines || [];
+    const words = ocrResult.words || [];
+    const displayName = options.displayName || null;
 
     console.log('解析 OCR 文字:', text.substring(0, 200)); // 顯示前200個字元
+    if (displayName) {
+      console.log('輔助 displayName:', displayName);
+    }
 
     const result = {
       success: false,
@@ -47,8 +65,8 @@ class ParserService {
       // 1. 提取身分證字號
       result.data.idNumber = this.extractIDNumber(text);
 
-      // 2. 提取姓名
-      result.data.name = this.extractName(text, lines);
+      // 2. 提取姓名（傳入 words 和 displayName 以輔助辨識）
+      result.data.name = this.extractName(text, lines, words, displayName);
 
       // 3. 提取性別（從身分證字號推斷）
       if (result.data.idNumber) {
@@ -112,42 +130,352 @@ class ParserService {
    * 提取姓名
    * @param {string} text - OCR 文字
    * @param {array} lines - OCR 行資料
+   * @param {array} words - OCR 單字資料（含位置資訊）
+   * @param {string} displayName - 輔助用的顯示名稱（格式可能是「名+姓」）
    * @returns {string|null}
    */
-  extractName(text, lines) {
-    // 尋找「姓名」關鍵字後面的文字
+  extractName(text, lines, words = [], displayName = null) {
+    console.log('開始提取姓名...');
+    const candidates = [];
+
+    // 從 displayName 推測可能的姓名（名+姓 -> 姓+名）
+    const expectedNames = this.getExpectedNamesFromDisplayName(displayName);
+    if (expectedNames.length > 0) {
+      console.log(`  從 displayName "${displayName}" 推測可能姓名:`, expectedNames);
+    }
+
+    // 方法1: 尋找「姓名」關鍵字後面的文字（放寬到1-5個中文字）
     const namePatterns = [
-      /姓[\s]*名[\s]*[：:]*[\s]*([^\n\r]{2,4})/,
-      /姓[\s]*名[\s]*(\S{2,4})/,
-      /名[\s]*[：:]*[\s]*([^\n\r]{2,4})/
+      /姓[\s]*名[\s]*[：:]*[\s]*([^\n\r\s]{1,5})/,
+      /姓[\s]*名[\s]*([^\n\r\s]{1,5})/,
+      /姓名[：:\s]*([^\n\r\s]{1,5})/
     ];
 
     for (const pattern of namePatterns) {
       const match = text.match(pattern);
       if (match && match[1]) {
-        const name = match[1].trim();
-        // 驗證名字（2-4個中文字）
-        if (/^[\u4e00-\u9fa5]{2,4}$/.test(name)) {
-          return name;
+        const name = this.cleanName(match[1]);
+        if (name) {
+          let score = this.scoreName(name);
+          // 如果與 displayName 推測的姓名匹配，加分
+          score += this.getDisplayNameMatchScore(name, expectedNames);
+          console.log(`  方法1 找到候選: "${name}" (分數: ${score})`);
+          candidates.push({ name, score, source: 'pattern' });
         }
       }
     }
 
-    // 嘗試從行資料中尋找
-    for (const line of lines) {
-      const lineText = line.text || '';
-      if (lineText.includes('姓名')) {
-        const parts = lineText.split(/姓名|:|：/);
-        if (parts.length > 1) {
-          const name = parts[1].trim();
-          if (/^[\u4e00-\u9fa5]{2,4}$/.test(name)) {
-            return name;
+    // 方法2: 從 words 陣列中利用位置資訊找「姓名」附近的文字
+    if (words && words.length > 0) {
+      const nameKeywordIndex = words.findIndex(w =>
+        (w.text || '').includes('姓名') || (w.text || '').includes('姓') || (w.text || '') === '名'
+      );
+
+      if (nameKeywordIndex !== -1) {
+        const nameKeyword = words[nameKeywordIndex];
+        console.log(`  找到「姓名」關鍵字在 words[${nameKeywordIndex}]: "${nameKeyword.text}"`);
+
+        // 檢查同一個 word 中是否已包含姓名
+        const keywordText = nameKeyword.text || '';
+        if (keywordText.length > 2) {
+          const afterKeyword = keywordText.replace(/姓名|姓|名/g, '').trim();
+          if (afterKeyword.length >= 1) {
+            const name = this.cleanName(afterKeyword);
+            if (name) {
+              let score = this.scoreName(name);
+              score += this.getDisplayNameMatchScore(name, expectedNames);
+              console.log(`  方法2a 同區塊找到: "${name}" (分數: ${score})`);
+              candidates.push({ name, score, source: 'same-word' });
+            }
+          }
+        }
+
+        // 檢查下一個 word
+        if (nameKeywordIndex + 1 < words.length) {
+          const nextWord = words[nameKeywordIndex + 1];
+          const name = this.cleanName(nextWord.text);
+          if (name) {
+            let score = this.scoreName(name);
+            score += this.getDisplayNameMatchScore(name, expectedNames);
+            console.log(`  方法2b 下一區塊找到: "${name}" (分數: ${score})`);
+            candidates.push({ name, score, source: 'next-word' });
+          }
+        }
+
+        // 利用位置資訊：找「姓名」右邊或下方的文字
+        if (nameKeyword.bbox) {
+          const keywordBbox = nameKeyword.bbox;
+          for (let i = 0; i < words.length; i++) {
+            if (i === nameKeywordIndex) continue;
+            const word = words[i];
+            if (!word.bbox) continue;
+
+            const wordBbox = word.bbox;
+            // 檢查是否在右邊（同一行）
+            const isRight = wordBbox.x0 > keywordBbox.x1 &&
+                           Math.abs(wordBbox.y0 - keywordBbox.y0) < 30;
+            // 檢查是否在下方
+            const isBelow = wordBbox.y0 > keywordBbox.y1 &&
+                           wordBbox.y0 < keywordBbox.y1 + 50 &&
+                           Math.abs(wordBbox.x0 - keywordBbox.x0) < 100;
+
+            if (isRight || isBelow) {
+              const name = this.cleanName(word.text);
+              if (name) {
+                let score = this.scoreName(name) + (isRight ? 2 : 1); // 右邊的優先
+                score += this.getDisplayNameMatchScore(name, expectedNames);
+                console.log(`  方法2c 位置找到: "${name}" (分數: ${score}, ${isRight ? '右邊' : '下方'})`);
+                candidates.push({ name, score, source: 'position' });
+              }
+            }
           }
         }
       }
     }
 
+    // 方法3: 從行資料中尋找
+    for (const line of lines) {
+      const lineText = line.text || '';
+      if (lineText.includes('姓名') || lineText.includes('姓') ) {
+        const parts = lineText.split(/姓名|姓|名|:|：/);
+        for (let i = 1; i < parts.length; i++) {
+          const name = this.cleanName(parts[i]);
+          if (name) {
+            let score = this.scoreName(name);
+            score += this.getDisplayNameMatchScore(name, expectedNames);
+            console.log(`  方法3 行資料找到: "${name}" (分數: ${score})`);
+            candidates.push({ name, score, source: 'line' });
+          }
+        }
+      }
+    }
+
+    // 方法4: 用常見姓氏在全文中搜尋（作為備用）
+    for (const surname of this.commonSurnames) {
+      const surnamePattern = new RegExp(`${surname}([\\u4e00-\\u9fa5]{1,3})`, 'g');
+      let match;
+      while ((match = surnamePattern.exec(text)) !== null) {
+        const fullName = surname + match[1];
+        // 排除明顯不是姓名的（如地名、機關名）
+        if (this.isLikelyName(fullName)) {
+          let score = this.scoreName(fullName) - 1; // 降低分數，因為這是備用方法
+          score += this.getDisplayNameMatchScore(fullName, expectedNames);
+          console.log(`  方法4 姓氏搜尋找到: "${fullName}" (分數: ${score})`);
+          candidates.push({ name: fullName, score, source: 'surname-search' });
+        }
+      }
+    }
+
+    // 方法5: 如果有 displayName，直接加入候選（高優先級）
+    for (const expectedName of expectedNames) {
+      // 檢查全文是否包含這個名字的字元（驗證）
+      const matchCount = this.countMatchingChars(expectedName, text);
+      // displayName 推測的姓名給予高分，特別是三個字的姓名
+      let baseScore = 15; // 基礎分數提高
+      if (expectedName.length === 3) baseScore += 5; // 三個字額外加分
+      if (matchCount >= 2) baseScore += 5; // 匹配兩個字以上額外加分
+
+      const score = this.scoreName(expectedName) + baseScore + matchCount;
+      console.log(`  方法5 displayName 推測: "${expectedName}" (分數: ${score}, 匹配字數: ${matchCount})`);
+      candidates.push({ name: expectedName, score, source: 'displayName' });
+    }
+
+    // 選擇分數最高的候選
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => b.score - a.score);
+      const best = candidates[0];
+      console.log(`  最終選擇: "${best.name}" (分數: ${best.score}, 來源: ${best.source})`);
+      return best.name;
+    }
+
+    // 最後備用：如果完全沒有候選但有 displayName，直接使用推測的第一個
+    if (expectedNames.length > 0) {
+      console.log(`  備用方案: 直接使用 displayName 推測 "${expectedNames[0]}"`);
+      return expectedNames[0];
+    }
+
+    console.log('  未找到姓名');
     return null;
+  }
+
+  /**
+   * 從 displayName 推測可能的姓名格式
+   * displayName 格式可能是「名+姓」，需要反轉
+   * @param {string} displayName
+   * @returns {string[]} 可能的姓名列表
+   */
+  getExpectedNamesFromDisplayName(displayName) {
+    if (!displayName) return [];
+
+    // 只取中文字
+    const chineseOnly = displayName.replace(/[^\u4e00-\u9fa5]/g, '');
+    if (chineseOnly.length < 2 || chineseOnly.length > 5) return [];
+
+    const results = [];
+
+    // 嘗試不同的姓名拆分方式
+    // 假設格式是「名+姓」，最後一個字是姓
+    if (chineseOnly.length >= 2) {
+      // 單姓：最後一個字是姓
+      const lastName = chineseOnly.charAt(chineseOnly.length - 1);
+      const firstName = chineseOnly.substring(0, chineseOnly.length - 1);
+      const reversed1 = lastName + firstName;
+      if (this.commonSurnames.includes(lastName)) {
+        results.push(reversed1);
+      }
+
+      // 複姓：最後兩個字是姓（較少見）
+      if (chineseOnly.length >= 3) {
+        const lastName2 = chineseOnly.substring(chineseOnly.length - 2);
+        const firstName2 = chineseOnly.substring(0, chineseOnly.length - 2);
+        const reversed2 = lastName2 + firstName2;
+        // 複姓列表
+        const compoundSurnames = ['歐陽', '司馬', '上官', '諸葛', '司徒', '皇甫'];
+        if (compoundSurnames.includes(lastName2)) {
+          results.push(reversed2);
+        }
+      }
+    }
+
+    // 也加入原始順序作為候選（可能有些 displayName 已經是姓+名）
+    if (this.commonSurnames.includes(chineseOnly.charAt(0))) {
+      results.push(chineseOnly);
+    }
+
+    return [...new Set(results)]; // 去重
+  }
+
+  /**
+   * 計算候選姓名與 displayName 推測姓名的匹配分數
+   * @param {string} candidate - 候選姓名
+   * @param {string[]} expectedNames - 推測的姓名列表
+   * @returns {number} 額外分數
+   */
+  getDisplayNameMatchScore(candidate, expectedNames) {
+    if (!candidate || expectedNames.length === 0) return 0;
+
+    for (const expected of expectedNames) {
+      // 完全匹配 - 大幅加分
+      if (candidate === expected) return 20;
+
+      // 部分匹配（處理缺字情況）
+      const matchCount = this.countMatchingChars(candidate, expected);
+      const maxLen = Math.max(candidate.length, expected.length);
+
+      // 如果匹配大部分字元
+      if (matchCount >= maxLen - 1 && matchCount >= 2) {
+        return 15 + matchCount; // 大部分匹配，高分
+      } else if (matchCount >= 1) {
+        return 8 + matchCount; // 部分匹配
+      }
+    }
+
+    return 0;
+  }
+
+  /**
+   * 計算兩個字串中匹配的中文字數量
+   * @param {string} str1
+   * @param {string} str2
+   * @returns {number}
+   */
+  countMatchingChars(str1, str2) {
+    if (!str1 || !str2) return 0;
+    let count = 0;
+    for (const char of str1) {
+      if (str2.includes(char)) count++;
+    }
+    return count;
+  }
+
+  /**
+   * 清理姓名字串
+   * @param {string} text - 原始文字
+   * @returns {string|null} 清理後的姓名
+   */
+  cleanName(text) {
+    if (!text) return null;
+
+    // 移除非中文字元、數字、英文
+    let cleaned = text.replace(/[^\u4e00-\u9fa5]/g, '');
+
+    // 移除常見的非姓名關鍵字
+    const excludeWords = ['姓名', '出生', '年月日', '發證', '住址', '統一', '編號', '中華民國', '身分證'];
+    for (const word of excludeWords) {
+      cleaned = cleaned.replace(word, '');
+    }
+
+    cleaned = cleaned.trim();
+
+    // 驗證長度（1-5個中文字）
+    if (cleaned.length >= 1 && cleaned.length <= 5) {
+      return cleaned;
+    }
+
+    // 如果太長，嘗試取前2-4個字
+    if (cleaned.length > 5) {
+      // 如果第一個字是常見姓氏，取姓+名（2-4字）
+      const firstChar = cleaned.charAt(0);
+      if (this.commonSurnames.includes(firstChar)) {
+        return cleaned.substring(0, Math.min(4, cleaned.length));
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * 為姓名候選評分
+   * @param {string} name - 姓名候選
+   * @returns {number} 分數（越高越好）
+   */
+  scoreName(name) {
+    if (!name) return 0;
+
+    let score = 0;
+
+    // 長度分數（身分證大部分是三個字）
+    if (name.length === 3) score += 8;      // 三個字最常見，大幅加分
+    else if (name.length === 2) score += 5; // 兩個字也常見
+    else if (name.length === 4) score += 3; // 四個字較少
+    else if (name.length === 1) score += 1; // 單字最少
+
+    // 姓氏分數
+    const firstChar = name.charAt(0);
+    if (this.commonSurnames.includes(firstChar)) {
+      score += 6;
+    }
+
+    // 全是中文字加分
+    if (/^[\u4e00-\u9fa5]+$/.test(name)) {
+      score += 3;
+    }
+
+    return score;
+  }
+
+  /**
+   * 判斷是否像是姓名（排除地名、機關名等）
+   * @param {string} text - 文字
+   * @returns {boolean}
+   */
+  isLikelyName(text) {
+    if (!text || text.length < 2 || text.length > 5) return false;
+
+    // 排除詞彙
+    const excludePatterns = [
+      /市$/, /縣$/, /區$/, /鄉$/, /鎮$/, /村$/, /里$/,
+      /路$/, /街$/, /巷$/, /弄$/, /號$/,
+      /所$/, /局$/, /處$/, /院$/, /部$/,
+      /公司/, /企業/, /銀行/, /醫院/,
+      /中華/, /民國/, /台灣/, /臺灣/
+    ];
+
+    for (const pattern of excludePatterns) {
+      if (pattern.test(text)) return false;
+    }
+
+    return true;
   }
 
   /**
@@ -157,10 +485,16 @@ class ParserService {
    */
   extractBirthDate(text) {
     // 民國年格式: 70年01月01日, 70.01.01
+    // 優先匹配有「出生」或「年月日」關鍵字的日期
     const patterns = [
-      /出生[\s]*日期[\s]*[：:]*[\s]*(\d{2,3})[\s年\.]*(\d{1,2})[\s月\.]*(\d{1,2})/,
-      /(\d{2,3})[\s]*年[\s]*(\d{1,2})[\s]*月[\s]*(\d{1,2})[\s]*日/,
-      /(\d{2,3})\.(\d{1,2})\.(\d{1,2})/
+      // 標準格式：出生日期 92年7月17日
+      /出生[\s]*[日期]*[\s]*[：:]*[\s]*(\d{2,3})[\s年\.]*(\d{1,2})[\s月\.]*(\d{1,2})/,
+      // OCR 可能把「出生」辨識錯，但「年月日」後面跟民國年格式
+      /年月日[\s]*民?國?[\s]*(\d{2,3})[\s]*年[\s]*(\d{1,2})[\s]*月?[\s]*(\d{1,2})/,
+      // 生日格式
+      /生[\s]*日[\s]*[：:]*[\s]*(\d{2,3})[\.\-](\d{1,2})[\.\-](\d{1,2})/,
+      // 民國XX年XX月XX日（排除發證日期附近的）
+      /民國[\s]*(\d{2,3})[\s]*年[\s]*(\d{1,2})[\s]*月[\s]*(\d{1,2})[\s]*日?(?!.*初發)/
     ];
 
     for (const pattern of patterns) {
@@ -169,7 +503,45 @@ class ParserService {
         const year = match[1].padStart(2, '0');
         const month = match[2].padStart(2, '0');
         const day = match[3].padStart(2, '0');
+        console.log(`提取出生日期: ${year}年${month}月${day}日`);
         return `${year}年${month}月${day}日`;
+      }
+    }
+
+    // 嘗試找第一個「民國XX年XX月XX」格式，但不是在「初發」或「發證」後面的
+    const allMinguoDates = [...text.matchAll(/民國[\s]*(\d{2,3})[\s]*年[\s]*(\d{1,2})[\s]*月[\s]*(\d{1,2})/g)];
+    if (allMinguoDates.length > 0) {
+      for (const match of allMinguoDates) {
+        const dateIndex = match.index;
+        const beforeText = text.substring(Math.max(0, dateIndex - 10), dateIndex);
+        // 如果前面不是「初發」或「發證」，就當作出生日期
+        if (!beforeText.includes('初發') && !beforeText.includes('發證') && !beforeText.includes('没日期')) {
+          const year = match[1].padStart(2, '0');
+          const month = match[2].padStart(2, '0');
+          const day = match[3].padStart(2, '0');
+          console.log(`提取出生日期 (民國格式): ${year}年${month}月${day}日`);
+          return `${year}年${month}月${day}日`;
+        }
+      }
+    }
+
+    // 最後嘗試匹配點分隔格式，找所有日期然後排除發證日期
+    const allDates = text.match(/(\d{2,3})\.(\d{1,2})\.(\d{1,2})/g);
+    if (allDates && allDates.length > 0) {
+      const issueDateIndex = text.search(/發證|初發/);
+
+      for (const dateStr of allDates) {
+        const dateIndex = text.indexOf(dateStr);
+        if (issueDateIndex === -1 || Math.abs(dateIndex - issueDateIndex) > 20) {
+          const match = dateStr.match(/(\d{2,3})\.(\d{1,2})\.(\d{1,2})/);
+          if (match) {
+            const year = match[1].padStart(2, '0');
+            const month = match[2].padStart(2, '0');
+            const day = match[3].padStart(2, '0');
+            console.log(`提取出生日期 (fallback): ${year}年${month}月${day}日`);
+            return `${year}年${month}月${day}日`;
+          }
+        }
       }
     }
 

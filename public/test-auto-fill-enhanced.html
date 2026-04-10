@@ -743,19 +743,12 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        imageUrl: imageUrl,
-                        autoFillForm: false
+                        imageUrl: imageUrl
                     })
                 });
 
                 const data = await response.json();
                 displayIDCardResult(data);
-
-                // 如果辨識成功且有身分證字號和生日，則在背景查詢違規記錄
-                if (data.success && data.data.idNumber && data.data.birthDate) {
-                    console.log('開始背景查詢違規記錄...');
-                    checkViolationInBackground(imageUrl, data.data.idNumber, data.data.birthDate, 'idCard');
-                }
 
             } catch (error) {
                 idCardResult.className = 'result error';
@@ -857,59 +850,20 @@
                     </div>
                 `;
 
-                // 顯示違規記錄查詢結果
-                if (data.automation) {
-                    html += `
-                        <div class="result-content" style="margin-top: 15px;">
-                            <div class="result-section">
-                                <div class="result-section-title">🚗 違規記錄查詢結果</div>
-                    `;
-
-                    if (data.automation.success) {
-                        const hasViolation = data.automation.hasViolation;
-                        const statusClass = hasViolation ? 'error' : 'success';
-                        const statusIcon = hasViolation ? '⚠️' : '✅';
-                        const statusText = hasViolation ? '有違規記錄' : '無違規記錄';
-
-                        html += `
-                                <div class="result-item" style="padding: 15px; background: ${hasViolation ? '#fff3cd' : '#d4edda'}; border-radius: 8px; border-left: 4px solid ${hasViolation ? '#ffc107' : '#28a745'};">
-                                    <div class="result-value" style="font-size: 16px; font-weight: bold; color: ${hasViolation ? '#856404' : '#155724'};">
-                                        ${statusIcon} ${statusText}
-                                    </div>
-                                </div>
-                        `;
-                    } else {
-                        html += `
-                                <div class="result-item" style="padding: 15px; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545;">
-                                    <div class="result-value" style="color: #721c24;">
-                                        ❌ 查詢失敗：${data.automation.message || '無法查詢違規記錄'}
-                                    </div>
-                                </div>
-                        `;
-                    }
-
-                    html += `
-                            </div>
-                        </div>
-                    `;
-                }
-
-                // 如果是手機瀏覽器，新增開啟監理所網站按鈕
-                if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-                    html += `
-                        <div style="margin-top: 20px; text-align: center;">
-                            <button onclick="window.open('https://www.mvdis.gov.tw/m3-emv-vil/vil/driverLicensePenalty#gsc.tab=0', '_blank')"
-                                    style="width: 100%; padding: 15px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-                                           color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold;
-                                           cursor: pointer; box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);">
-                                🌐 開啟監理所網站
-                            </button>
-                            <p style="color: #666; font-size: 13px; margin-top: 10px;">
-                                💡 提示：使用上方複製按鈕複製身分證字號和生日後，點此開啟監理所網站手動填寫
-                            </p>
-                        </div>
-                    `;
-                }
+                // 新增開啟監理所網站按鈕
+                html += `
+                    <div style="margin-top: 20px; text-align: center;">
+                        <button onclick="window.open('https://www.mvdis.gov.tw/m3-emv-vil/vil/driverLicensePenalty#gsc.tab=0', '_blank')"
+                                style="width: 100%; padding: 15px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+                                       color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold;
+                                       cursor: pointer; box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);">
+                            🌐 開啟監理所網站查詢違規記錄
+                        </button>
+                        <p style="color: #666; font-size: 13px; margin-top: 10px;">
+                            💡 提示：使用上方複製按鈕複製身分證字號和生日後，點此開啟監理所網站手動填寫
+                        </p>
+                    </div>
+                `;
             } else if (data.error) {
                 html += `
                     <div class="result-content">
@@ -943,8 +897,7 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        imageUrl: imageUrl,
-                        autoFillForm: false
+                        imageUrl: imageUrl
                     })
                 });
 
@@ -1037,8 +990,6 @@
         const submitBtn = document.getElementById('submitBtn');
         const loading = document.getElementById('loading');
         const result = document.getElementById('result');
-        const autoFillForm = document.getElementById('autoFillForm');
-        const keepBrowserAlive = document.getElementById('keepBrowserAlive');
 
         // 只有當元素存在時才添加事件監聽器
         if (submitBtn) {
@@ -1046,15 +997,6 @@
                 console.log('開始辨識按鈕被點擊');
                 const activeTab = document.querySelector('.tab.active').dataset.tab;
                 console.log('當前 Tab:', activeTab);
-
-                // 檢查是否勾選自動填寫
-                if (autoFillForm && autoFillForm.checked) {
-                    console.log('已勾選自動填寫');
-                    // 在手機上顯示提示
-                    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-                        alert('提示：自動填寫功能會在伺服器端執行,不會在您的手機上打開瀏覽器。如需手動填寫,請取消勾選「啟用自動填寫」選項。');
-                    }
-                }
 
                 if (activeTab === 'upload') {
                     await submitUpload();
@@ -1074,7 +1016,6 @@
             try {
                 const formData = new FormData();
                 formData.append('image', selectedFile);
-                formData.append('autoFillForm', autoFillForm.checked);
 
                 const response = await fetch('/api/verify/upload', {
                     method: 'POST',
@@ -1115,8 +1056,7 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        imageUrl: url,
-                        autoFillForm: true,
+                        imageUrl: url
                     })
                 });
 
@@ -1220,80 +1160,6 @@
             }
 
             result.innerHTML = html;
-        }
-
-        // 背景查詢違規記錄
-        async function checkViolationInBackground(imageUrl, idNumber, birthDate, type) {
-            const resultElement = type === 'idCard' ?
-                document.getElementById('idCardResult') :
-                document.getElementById('drivingLicenseResult');
-
-            // 在結果區域加入查詢狀態提示
-            const statusDiv = document.createElement('div');
-            statusDiv.id = `${type}-violation-status`;
-            statusDiv.style.cssText = 'margin-top: 15px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; text-align: center;';
-            statusDiv.innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
-                    <div class="spinner" style="width: 20px; height: 20px; border-width: 3px;"></div>
-                    <span style="color: #856404;">正在查詢違規記錄...</span>
-                </div>
-            `;
-            resultElement.appendChild(statusDiv);
-
-            try {
-                console.log(`查詢違規記錄 - 身分證: ${idNumber}, 生日: ${birthDate}`);
-                const response = await fetch('/api/verify/url', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        imageUrl: imageUrl,
-                        autoFillForm: true
-                    })
-                });
-
-                const data = await response.json();
-                console.log('違規記錄查詢完成:', data);
-
-                // 更新狀態顯示
-                if (data.automation && data.automation.success) {
-                    const hasViolation = data.automation.hasViolation;
-                    statusDiv.style.background = hasViolation ? '#f8d7da' : '#d4edda';
-                    statusDiv.style.borderColor = hasViolation ? '#dc3545' : '#28a745';
-                    statusDiv.innerHTML = `
-                        <div style="color: ${hasViolation ? '#721c24' : '#155724'}; font-weight: bold;">
-                            ${hasViolation ? '⚠️ 有違規記錄' : '✓ 無違規記錄'}
-                        </div>
-                        <div style="font-size: 12px; color: #666; margin-top: 5px;">
-                            查詢時間: ${new Date().toLocaleTimeString('zh-TW')}
-                        </div>
-                    `;
-                } else {
-                    statusDiv.style.background = '#f8d7da';
-                    statusDiv.style.borderColor = '#dc3545';
-                    statusDiv.innerHTML = `
-                        <div style="color: #721c24;">
-                            ❌ 違規記錄查詢失敗
-                        </div>
-                        <div style="font-size: 12px; color: #666; margin-top: 5px;">
-                            ${data.automation?.message || '查詢過程發生錯誤'}
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                console.error('違規記錄查詢錯誤:', error);
-                statusDiv.style.background = '#f8d7da';
-                statusDiv.style.borderColor = '#dc3545';
-                statusDiv.innerHTML = `
-                    <div style="color: #721c24;">
-                        ❌ 違規記錄查詢失敗
-                    </div>
-                    <div style="font-size: 12px; color: #666; margin-top: 5px;">
-                        ${error.message || '網路錯誤'}
-                    </div>
-                `;
-            }
         }
 
         // 複製到剪貼簿功能
