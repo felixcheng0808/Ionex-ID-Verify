@@ -202,6 +202,23 @@ apiRouter.post('/rental-user/add', async (req, res) => {
   }
 });
 
+// 查詢駕照違規記錄
+apiRouter.post('/check-violation', async (req, res) => {
+  const webAutomationService = require('./services/webAutomationService');
+  const { idNumber, birthDate } = req.body;
+
+  if (!idNumber || !birthDate) {
+    return res.status(400).json({ success: false, error: '缺少身分證字號或出生日期' });
+  }
+
+  try {
+    const hasViolation = await webAutomationService.isViolationRecords(idNumber, birthDate);
+    return res.json({ success: true, hasViolation });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // 掛載 API 路由
 app.use('/api', apiRouter);
 

@@ -1,9 +1,13 @@
 require('dotenv/config');
 const { chromium } = require('playwright');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
 const path = require('path');
 const fs = require('fs').promises;
 
+const execFileAsync = promisify(execFile);
 const parserService = require('./parserService');
+const CAPTCHA_SCRIPT = path.join(__dirname, '../../scripts/solve_captcha.py');
 
 /**
  * 網站自動化服務 - 用於自動填寫監理服務網表單
@@ -150,19 +154,16 @@ class WebAutomationService {
       }
 
       const timestamp = Date.now();
-      const captchaImagePath = path.join(__dirname, `../../captcha_${timestamp}.png`);
+      const captchaImagePath = path.join(__dirname, `../../temp/captcha_${timestamp}.png`);
       await captchaElement.screenshot({ path: captchaImagePath });
+      console.log('✅ 驗證碼截圖完成');
 
-      console.log('✅ 驗證碼圖片已儲存:', captchaImagePath);
-      console.log('');
-
-      // TODO: 實作驗證碼識別
-      const captchaText = '';
+      // 用 Gemini 辨識驗證碼
+      const captchaText = await this.solveCaptcha(captchaImagePath);
 
       // 刪除驗證碼圖片
       try {
         await fs.unlink(captchaImagePath);
-        console.log('🗑️  已刪除驗證碼圖片');
       } catch (err) {
         // 忽略刪除失敗
       }
@@ -173,6 +174,8 @@ class WebAutomationService {
         await browser.close();
         return result;
       }
+
+      console.log(`🔑 驗證碼辨識結果: "${captchaText}"`);
 
       result.data.captchaRecognized = true;
 
@@ -236,6 +239,26 @@ class WebAutomationService {
       }
 
       return result;
+    }
+  }
+
+  /**
+   * 使用 ddddocr (Python) 辨識驗證碼
+   * @param {string} imagePath - 驗證碼圖片路徑
+   * @returns {Promise<string>} 驗證碼文字，失敗時回傳空字串
+   */
+  async solveCaptcha(imagePath) {
+    try {
+      const { stdout, stderr } = await execFileAsync('python3', [CAPTCHA_SCRIPT, imagePath]);
+      if (stderr) {
+        console.warn('ddddocr stderr:', stderr.trim());
+      }
+      const text = stdout.trim().replace(/\s+/g, '');
+      console.log(`  ddddocr 辨識結果: "${text}"`);
+      return text;
+    } catch (error) {
+      console.error('驗證碼辨識失敗:', error.message);
+      return '';
     }
   }
 
