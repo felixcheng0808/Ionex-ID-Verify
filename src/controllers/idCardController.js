@@ -1,6 +1,9 @@
+const crypto = require('crypto');
 const imageService = require('../services/imageService');
 const ocrService = require('../services/ocrService');
 const parserService = require('../services/parserService');
+const errorLogService = require('../services/errorLogService');
+const { STEPS, ERROR_CODES, logError } = errorLogService;
 const Joi = require('joi');
 
 class IDCardController {
@@ -11,6 +14,8 @@ class IDCardController {
     let downloadedFile = null;
     let processedFile = null;
     const tracker = imageService.createResourceTracker();
+    const sessionId = crypto.randomUUID();
+    const endpoint = '/api/verify/url';
 
     try {
       // 驗證請求資料
@@ -22,81 +27,174 @@ class IDCardController {
         documentType: Joi.string().valid('id_card', 'driving_license', 'auto').default('auto').messages({
           'any.only': 'documentType 必須是 id_card, driving_license 或 auto'
         }),
-        displayName: Joi.string().allow('', null).optional()  // 用於輔助姓名辨識
+        displayName: Joi.string().allow('', null).optional()
       }).unknown(true);
 
       const { error, value } = schema.validate(req.body);
       if (error) {
-        return res.status(400).json({
-          success: false,
-          error: error.details[0].message
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.REQUEST_VALIDATION,
+          errorCode: ERROR_CODES.VALIDATION_ERROR,
+          message: error.details[0].message,
+          context: { body: req.body },
         });
+        return res.status(400).json({ success: false, error: error.details[0].message });
       }
 
       const { imageUrl, documentType, displayName } = value;
+      const baseContext = { documentType, imageUrl, ocrEngine: ocrService.getStatus().engine };
 
-      // 1. 下載圖片（帶入追蹤器記錄流量）
+      // 1. 下載圖片
       console.log('正在下載圖片...');
-      downloadedFile = await imageService.downloadFromUrl(imageUrl, tracker);
+      try {
+        downloadedFile = await imageService.downloadFromUrl(imageUrl, tracker);
+      } catch (err) {
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.IMAGE_DOWNLOAD,
+          errorCode: ERROR_CODES.DOWNLOAD_FAILED,
+          message: err.message,
+          context: baseContext,
+          error: err,
+        });
+        throw err;
+      }
 
       // 2. 驗證圖片
-      await imageService.validateImage(downloadedFile);
+      try {
+        await imageService.validateImage(downloadedFile);
+      } catch (err) {
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.IMAGE_VALIDATION,
+          errorCode: ERROR_CODES.INVALID_IMAGE,
+          message: err.message,
+          context: baseContext,
+          error: err,
+        });
+        throw err;
+      }
 
-      // 3. 預處理圖片（根據 OCR 引擎選擇預處理方式）
+      // 3. 預處理圖片
       console.log('正在預處理圖片...');
-
-      if (ocrService.useGoogleVision || ocrService.usePaddleOCR) {
-        // 使用 Google Vision / PaddleOCR 專用預處理（彩色、適度增強）
-        processedFile = await imageService.preprocessForGoogleVision(downloadedFile);
-      } else {
-        // 使用 Tesseract 專用預處理（灰階、強化處理）
-        processedFile = await imageService.preprocessImage(downloadedFile);
+      try {
+        if (ocrService.useGoogleVision || ocrService.usePaddleOCR) {
+          processedFile = await imageService.preprocessForGoogleVision(downloadedFile);
+        } else {
+          processedFile = await imageService.preprocessImage(downloadedFile);
+        }
+      } catch (err) {
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.IMAGE_PREPROCESSING,
+          errorCode: ERROR_CODES.PREPROCESSING_FAILED,
+          message: err.message,
+          context: baseContext,
+          error: err,
+        });
+        throw err;
       }
 
       // 4. 執行 OCR
       console.log('正在進行 OCR 辨識...');
-      const ocrResult = await ocrService.recognizeText(processedFile);
+      let ocrResult;
+      try {
+        ocrResult = await ocrService.recognizeText(processedFile);
+      } catch (err) {
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.OCR_RECOGNITION,
+          errorCode: ERROR_CODES.OCR_FAILED,
+          message: err.message,
+          context: baseContext,
+          error: err,
+        });
+        throw err;
+      }
+
+      // OCR 空結果或低信心警告
+      const text = ocrResult.text || '';
+      if (!text.trim()) {
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.OCR_RECOGNITION,
+          errorCode: ERROR_CODES.OCR_EMPTY_RESULT,
+          message: 'OCR 未辨識到任何文字',
+          context: { ...baseContext, confidence: ocrResult.confidence },
+        });
+      } else if (ocrResult.confidence < 30) {
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.OCR_RECOGNITION,
+          errorCode: ERROR_CODES.OCR_LOW_CONFIDENCE,
+          message: `OCR 信心值過低: ${ocrResult.confidence}%`,
+          context: { ...baseContext, confidence: ocrResult.confidence },
+        });
+      }
 
       // 5. 判斷證件類型並解析
       console.log('正在解析證件資訊...');
       let parseResult;
-      const text = ocrResult.text || '';
-
-      // 根據 documentType 參數決定解析方式
       let isDrivingLicense = false;
 
       if (documentType === 'id_card') {
-        // 強制使用身分證解析器
         console.log('指定使用身分證解析器...');
         isDrivingLicense = false;
       } else if (documentType === 'driving_license') {
-        // 強制使用駕照解析器
         console.log('指定使用駕照解析器...');
         isDrivingLicense = true;
       } else {
-        // 自動判斷 (包含「駕照」、「駕駛執照」、「機車」等關鍵字)
         isDrivingLicense = text.includes('駕照') ||
                            text.includes('駕駛執照') ||
                            text.includes('交通部') ||
-                           /[A-Z]\d{2}\d{7,8}/.test(text); // 駕照號碼格式
+                           /[A-Z]\d{2}\d{7,8}/.test(text);
       }
 
-      if (isDrivingLicense) {
-        console.log('使用駕照解析器...');
-        parseResult = parserService.parseDrivingLicense(ocrResult);
-      } else {
-        console.log('使用身分證解析器...');
-        parseResult = parserService.parseIDCard(ocrResult, { displayName });
+      try {
+        if (isDrivingLicense) {
+          console.log('使用駕照解析器...');
+          parseResult = parserService.parseDrivingLicense(ocrResult);
+        } else {
+          console.log('使用身分證解析器...');
+          parseResult = parserService.parseIDCard(ocrResult, { displayName });
+        }
+      } catch (err) {
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.DATA_PARSING,
+          errorCode: ERROR_CODES.PARSE_FAILED,
+          message: err.message,
+          context: { ...baseContext, confidence: ocrResult.confidence, isDrivingLicense },
+          error: err,
+        });
+        throw err;
       }
 
       // 6. 驗證解析結果
       const validation = parserService.validateParseResult(parseResult);
 
+      // 記錄欄位缺失的情況
+      if (!validation.isComplete) {
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.RESULT_VALIDATION,
+          errorCode: ERROR_CODES.INCOMPLETE_RESULT,
+          message: `辨識結果欄位不完整，缺少: ${validation.missingFields.join(', ')}`,
+          context: {
+            ...baseContext,
+            confidence: parseResult.confidence,
+            isDrivingLicense,
+            missingFields: validation.missingFields,
+            extractedData: parseResult.data,
+          },
+        });
+      }
+
       // 7. 取得資源使用統計
       const resourceStats = tracker.getStats();
       console.log('資源使用統計:', JSON.stringify(resourceStats, null, 2));
 
-      // 8. 回傳結果
       const response = {
         success: parseResult.success,
         data: parseResult.data,
@@ -106,6 +204,7 @@ class IDCardController {
         },
         confidence: parseResult.confidence,
         message: parseResult.success ? '辨識成功' : '辨識失敗，請確認圖片品質',
+        sessionId,
         resourceUsage: {
           processingTimeMs: resourceStats.processingTimeMs,
           downloadBytes: resourceStats.downloadBytes,
@@ -118,12 +217,23 @@ class IDCardController {
 
     } catch (error) {
       console.error('辨識錯誤:', error);
+      // 如果是尚未被個別步驟捕捉的未知錯誤，統一記錄
+      if (!error._logged) {
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.DATA_PARSING,
+          errorCode: ERROR_CODES.UNKNOWN_ERROR,
+          message: error.message || '未知錯誤',
+          context: { body: req.body },
+          error,
+        }).catch(() => {});
+      }
       return res.status(500).json({
         success: false,
-        error: error.message || '辨識過程發生錯誤'
+        error: error.message || '辨識過程發生錯誤',
+        sessionId,
       });
     } finally {
-      // 清理臨時檔案
       await imageService.cleanupFiles([downloadedFile, processedFile]);
     }
   }
@@ -135,67 +245,150 @@ class IDCardController {
     let processedFile = null;
     const uploadedFile = req.file ? req.file.path : null;
     const tracker = imageService.createResourceTracker();
+    const sessionId = crypto.randomUUID();
+    const endpoint = '/api/verify/upload';
 
     try {
-      // 檢查是否有上傳檔案（由 middleware 處理，這裡雙重檢查）
       if (!uploadedFile) {
-        return res.status(400).json({
-          success: false,
-          error: '請上傳圖片檔案'
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.REQUEST_VALIDATION,
+          errorCode: ERROR_CODES.VALIDATION_ERROR,
+          message: '請上傳圖片檔案',
+          context: {},
         });
+        return res.status(400).json({ success: false, error: '請上傳圖片檔案' });
       }
 
-      // 記錄上傳檔案大小
       const fs = require('fs').promises;
       const uploadStats = await fs.stat(uploadedFile);
       tracker.addDownloadBytes(uploadStats.size);
       console.log(`上傳檔案大小: ${(uploadStats.size / 1024).toFixed(2)} KB`);
 
+      const baseContext = { ocrEngine: ocrService.getStatus().engine, uploadSizeKB: (uploadStats.size / 1024).toFixed(2) };
+
       // 1. 驗證圖片
-      await imageService.validateImage(uploadedFile);
+      try {
+        await imageService.validateImage(uploadedFile);
+      } catch (err) {
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.IMAGE_VALIDATION,
+          errorCode: ERROR_CODES.INVALID_IMAGE,
+          message: err.message,
+          context: baseContext,
+          error: err,
+        });
+        throw err;
+      }
 
-      // 2. 預處理圖片（根據 OCR 引擎選擇預處理方式）
+      // 2. 預處理圖片
       console.log('正在預處理圖片...');
-
-      if (ocrService.useGoogleVision || ocrService.usePaddleOCR) {
-        // 使用 Google Vision / PaddleOCR 專用預處理（彩色、適度增強）
-        processedFile = await imageService.preprocessForGoogleVision(uploadedFile);
-      } else {
-        // 使用 Tesseract 專用預處理（灰階、強化處理）
-        processedFile = await imageService.preprocessImage(uploadedFile);
+      try {
+        if (ocrService.useGoogleVision || ocrService.usePaddleOCR) {
+          processedFile = await imageService.preprocessForGoogleVision(uploadedFile);
+        } else {
+          processedFile = await imageService.preprocessImage(uploadedFile);
+        }
+      } catch (err) {
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.IMAGE_PREPROCESSING,
+          errorCode: ERROR_CODES.PREPROCESSING_FAILED,
+          message: err.message,
+          context: baseContext,
+          error: err,
+        });
+        throw err;
       }
 
       // 3. 執行 OCR
       console.log('正在進行 OCR 辨識...');
-      const ocrResult = await ocrService.recognizeText(processedFile);
+      let ocrResult;
+      try {
+        ocrResult = await ocrService.recognizeText(processedFile);
+      } catch (err) {
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.OCR_RECOGNITION,
+          errorCode: ERROR_CODES.OCR_FAILED,
+          message: err.message,
+          context: baseContext,
+          error: err,
+        });
+        throw err;
+      }
+
+      const text = ocrResult.text || '';
+      if (!text.trim()) {
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.OCR_RECOGNITION,
+          errorCode: ERROR_CODES.OCR_EMPTY_RESULT,
+          message: 'OCR 未辨識到任何文字',
+          context: { ...baseContext, confidence: ocrResult.confidence },
+        });
+      } else if (ocrResult.confidence < 30) {
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.OCR_RECOGNITION,
+          errorCode: ERROR_CODES.OCR_LOW_CONFIDENCE,
+          message: `OCR 信心值過低: ${ocrResult.confidence}%`,
+          context: { ...baseContext, confidence: ocrResult.confidence },
+        });
+      }
 
       // 4. 判斷證件類型並解析
       console.log('正在解析證件資訊...');
       let parseResult;
-      const text = ocrResult.text || '';
-
-      // 判斷是否為駕照
       const isDrivingLicense = text.includes('駕照') ||
                                text.includes('駕駛執照') ||
                                text.includes('交通部') ||
                                /[A-Z]\d{2}\d{7,8}/.test(text);
 
-      if (isDrivingLicense) {
-        console.log('偵測到駕照,使用駕照解析器...');
-        parseResult = parserService.parseDrivingLicense(ocrResult);
-      } else {
-        console.log('使用身分證解析器...');
-        parseResult = parserService.parseIDCard(ocrResult);
+      try {
+        if (isDrivingLicense) {
+          console.log('偵測到駕照,使用駕照解析器...');
+          parseResult = parserService.parseDrivingLicense(ocrResult);
+        } else {
+          console.log('使用身分證解析器...');
+          parseResult = parserService.parseIDCard(ocrResult);
+        }
+      } catch (err) {
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.DATA_PARSING,
+          errorCode: ERROR_CODES.PARSE_FAILED,
+          message: err.message,
+          context: { ...baseContext, confidence: ocrResult.confidence, isDrivingLicense },
+          error: err,
+        });
+        throw err;
       }
 
       // 5. 驗證解析結果
       const validation = parserService.validateParseResult(parseResult);
 
+      if (!validation.isComplete) {
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.RESULT_VALIDATION,
+          errorCode: ERROR_CODES.INCOMPLETE_RESULT,
+          message: `辨識結果欄位不完整，缺少: ${validation.missingFields.join(', ')}`,
+          context: {
+            ...baseContext,
+            confidence: parseResult.confidence,
+            isDrivingLicense,
+            missingFields: validation.missingFields,
+            extractedData: parseResult.data,
+          },
+        });
+      }
+
       // 6. 取得資源使用統計
       const resourceStats = tracker.getStats();
       console.log('資源使用統計:', JSON.stringify(resourceStats, null, 2));
 
-      // 7. 回傳結果
       const response = {
         success: parseResult.success,
         data: parseResult.data,
@@ -205,6 +398,7 @@ class IDCardController {
         },
         confidence: parseResult.confidence,
         message: parseResult.success ? '辨識成功' : '辨識失敗，請確認圖片品質',
+        sessionId,
         resourceUsage: {
           processingTimeMs: resourceStats.processingTimeMs,
           uploadBytes: resourceStats.downloadBytes,
@@ -217,12 +411,22 @@ class IDCardController {
 
     } catch (error) {
       console.error('辨識錯誤:', error);
+      if (!error._logged) {
+        await logError({
+          sessionId, endpoint,
+          step: STEPS.DATA_PARSING,
+          errorCode: ERROR_CODES.UNKNOWN_ERROR,
+          message: error.message || '未知錯誤',
+          context: {},
+          error,
+        }).catch(() => {});
+      }
       return res.status(500).json({
         success: false,
-        error: error.message || '辨識過程發生錯誤'
+        error: error.message || '辨識過程發生錯誤',
+        sessionId,
       });
     } finally {
-      // 清理臨時檔案
       await imageService.cleanupFiles([uploadedFile, processedFile]);
     }
   }
@@ -233,7 +437,6 @@ class IDCardController {
   async getStatus(req, res) {
     try {
       const ocrStatus = ocrService.getStatus();
-
       return res.json({
         success: true,
         status: 'running',
@@ -241,10 +444,7 @@ class IDCardController {
         version: '1.0.0'
       });
     } catch (error) {
-      return res.status(500).json({
-        success: false,
-        error: error.message
-      });
+      return res.status(500).json({ success: false, error: error.message });
     }
   }
 
@@ -252,10 +452,7 @@ class IDCardController {
    * 健康檢查端點
    */
   async healthCheck(req, res) {
-    return res.json({
-      status: 'ok',
-      timestamp: new Date().toISOString()
-    });
+    return res.json({ status: 'ok', timestamp: new Date().toISOString() });
   }
 }
 

@@ -3,10 +3,13 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 // 現在載入其他模組
+const crypto = require('crypto');
 const express = require('express');
 const path = require('path');
 const idCardController = require('./controllers/idCardController');
 const uploadMiddleware = require('./middlewares/uploadMiddleware');
+const errorLogService = require('./services/errorLogService');
+const { STEPS, ERROR_CODES, logError } = errorLogService;
 
 const app = express();
 
@@ -206,17 +209,77 @@ apiRouter.post('/rental-user/add', async (req, res) => {
 apiRouter.post('/check-violation', async (req, res) => {
   const webAutomationService = require('./services/webAutomationService');
   const { idNumber, birthDate } = req.body;
+  const sessionId = crypto.randomUUID();
+  const endpoint = '/api/check-violation';
 
   if (!idNumber || !birthDate) {
+    await logError({
+      sessionId, endpoint,
+      step: STEPS.REQUEST_VALIDATION,
+      errorCode: ERROR_CODES.VALIDATION_ERROR,
+      message: '缺少身分證字號或出生日期',
+      context: { body: req.body },
+    }).catch(() => {});
     return res.status(400).json({ success: false, error: '缺少身分證字號或出生日期' });
   }
 
   try {
     const hasViolation = await webAutomationService.isViolationRecords(idNumber, birthDate);
-    return res.json({ success: true, hasViolation });
+    return res.json({ success: true, hasViolation, sessionId });
+  } catch (error) {
+    await logError({
+      sessionId, endpoint,
+      step: STEPS.VIOLATION_CHECK,
+      errorCode: ERROR_CODES.VIOLATION_CHECK_FAILED,
+      message: error.message,
+      context: { idNumber },
+      error,
+    }).catch(() => {});
+    return res.status(500).json({ success: false, error: error.message, sessionId });
+  }
+});
+
+// ── 錯誤日誌查詢 ──────────────────────────────────────────────────────────────
+
+// 查詢錯誤紀錄
+// GET /api/errors?startDate=2026-04-01&endDate=2026-04-22&step=ocr_recognition&errorCode=OCR_FAILED&limit=50&offset=0
+apiRouter.get('/errors', async (req, res) => {
+  try {
+    const result = await errorLogService.queryErrors(req.query);
+    return res.json({ success: true, ...result });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// 查詢錯誤統計摘要
+// GET /api/errors/stats?startDate=2026-04-01&endDate=2026-04-22
+apiRouter.get('/errors/stats', async (req, res) => {
+  try {
+    const stats = await errorLogService.getErrorStats(req.query);
+    return res.json({ success: true, ...stats });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 列出有日誌的日期
+apiRouter.get('/errors/dates', async (req, res) => {
+  try {
+    const dates = await errorLogService.listLogDates();
+    return res.json({ success: true, dates });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 可用的步驟與錯誤代碼常數（供前端/文件參考）
+apiRouter.get('/errors/constants', (req, res) => {
+  return res.json({
+    success: true,
+    steps: errorLogService.STEPS,
+    errorCodes: errorLogService.ERROR_CODES,
+  });
 });
 
 // 掛載 API 路由
@@ -232,7 +295,10 @@ app.get('/', (req, res) => {
       health: 'GET /api/health',
       status: 'GET /api/status',
       verifyByUrl: 'POST /api/verify/url',
-      verifyByUpload: 'POST /api/verify/upload'
+      verifyByUpload: 'POST /api/verify/upload',
+      errorLogs: 'GET /api/errors',
+      errorStats: 'GET /api/errors/stats',
+      errorLogUI: 'GET /error-logs.html'
     },
     usage: {
       verifyByUrl: {

@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OCR 測試 — Ionex ID Verify</title>
+  <script src="/nav.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Microsoft JhengHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+    }
+
+    .page { max-width: 960px; margin: 0 auto; padding: 32px 20px 60px; }
+
+    .page-title { font-size: 22px; font-weight: 700; color: #2d3748; margin-bottom: 6px; }
+    .page-sub   { font-size: 14px; color: #718096; margin-bottom: 28px; }
+
+    /* ── Layout ── */
+    .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: white; border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07); overflow: hidden;
+    }
+    .panel-header {
+      padding: 16px 20px; border-bottom: 1px solid #edf2f7;
+      font-size: 14px; font-weight: 700; color: #4a5568;
+    }
+    .panel-body { padding: 20px; }
+
+    /* ── Input Tabs ── */
+    .tabs { display: flex; border-bottom: 2px solid #edf2f7; }
+    .tab {
+      padding: 12px 20px; border: none; background: none;
+      font-size: 14px; font-weight: 600; color: #a0aec0;
+      cursor: pointer; border-bottom: 2px solid transparent;
+      position: relative; top: 2px; transition: all .15s;
+    }
+    .tab.active { color: #667eea; border-bottom-color: #667eea; }
+    .tab-content { display: none; padding: 20px; }
+    .tab-content.active { display: block; }
+
+    /* ── Form Controls ── */
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block; font-size: 12px; font-weight: 700;
+      color: #718096; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em;
+    }
+    input[type="text"], input[type="url"], select {
+      width: 100%; padding: 10px 12px;
+      border: 1.5px solid #e2e8f0; border-radius: 8px;
+      font-size: 14px; color: #2d3748; background: #f7fafc;
+      transition: border-color .15s;
+    }
+    input:focus, select:focus { outline: none; border-color: #667eea; background: white; }
+
+    /* Upload area */
+    .upload-area {
+      border: 2px dashed #cbd5e0; border-radius: 12px;
+      padding: 36px 20px; text-align: center; cursor: pointer;
+      transition: all .2s; background: #f7fafc;
+    }
+    .upload-area:hover, .upload-area.dragover {
+      border-color: #667eea; background: #f0f2ff;
+    }
+    .upload-icon { font-size: 36px; margin-bottom: 8px; }
+    .upload-text { font-size: 14px; color: #718096; }
+    .upload-sub  { font-size: 12px; color: #a0aec0; margin-top: 4px; }
+    #fileInput { display: none; }
+
+    /* Preview */
+    .preview-wrap { margin-top: 14px; display: none; }
+    .preview-wrap img { max-width: 100%; border-radius: 8px; border: 1px solid #e2e8f0; }
+    .preview-name { font-size: 12px; color: #718096; margin-top: 6px; }
+
+    /* Submit */
+    .btn {
+      width: 100%; padding: 12px; border: none; border-radius: 10px;
+      font-size: 15px; font-weight: 700; cursor: pointer; transition: all .2s;
+    }
+    .btn-primary { background: linear-gradient(135deg,#667eea,#764ba2); color: white; }
+    .btn-primary:hover { opacity: .9; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(102,126,234,.4); }
+    .btn-primary:disabled { opacity: .5; transform: none; box-shadow: none; cursor: not-allowed; }
+    .btn-secondary { background: #edf2f7; color: #4a5568; }
+    .btn-secondary:hover { background: #e2e8f0; }
+
+    /* ── Result Panel ── */
+    .result-empty {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; min-height: 340px; color: #a0aec0; gap: 10px;
+    }
+    .result-empty-icon { font-size: 48px; }
+    .result-empty p { font-size: 14px; }
+
+    .result-content { padding: 20px; }
+
+    /* Status banner */
+    .result-banner {
+      border-radius: 10px; padding: 12px 16px;
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 20px; font-size: 14px; font-weight: 600;
+    }
+    .result-banner.success { background: #f0fff4; color: #276749; border: 1.5px solid #9ae6b4; }
+    .result-banner.partial { background: #fffbeb; color: #92400e; border: 1.5px solid #fcd34d; }
+    .result-banner.error   { background: #fff5f5; color: #9b2c2c; border: 1.5px solid #fc8181; }
+    .banner-icon { font-size: 20px; }
+
+    /* Fields */
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    @media (max-width: 480px) { .field-grid { grid-template-columns: 1fr; } }
+
+    .field {
+      background: #f7fafc; border-radius: 8px; padding: 10px 14px;
+      border-left: 3px solid #667eea;
+    }
+    .field.missing { border-left-color: #fc8181; background: #fff5f5; }
+    .field-label { font-size: 11px; font-weight: 700; color: #a0aec0; text-transform: uppercase; margin-bottom: 3px; }
+    .field-value { font-size: 15px; font-weight: 600; color: #2d3748; }
+    .field-value.empty { color: #a0aec0; font-style: italic; font-size: 13px; font-weight: 400; }
+
+    /* Confidence */
+    .confidence-row {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 16px; font-size: 13px; color: #4a5568;
+    }
+    .confidence-bar-wrap {
+      flex: 1; height: 8px; background: #edf2f7; border-radius: 4px; overflow: hidden;
+    }
+    .confidence-bar { height: 100%; border-radius: 4px; transition: width .4s; }
+    .confidence-val { font-weight: 700; min-width: 44px; text-align: right; }
+
+    /* Session ID */
+    .session-row {
+      display: flex; align-items: center; gap: 8px;
+      background: #f7fafc; border-radius: 8px; padding: 8px 12px;
+      margin-bottom: 16px;
+    }
+    .session-label { font-size: 11px; font-weight: 700; color: #a0aec0; text-transform: uppercase; }
+    .session-id { font-family: monospace; font-size: 12px; color: #4a5568; flex: 1; overflow: hidden; text-overflow: ellipsis; }
+    .session-copy {
+      font-size: 11px; padding: 3px 8px; border-radius: 5px;
+      border: 1px solid #e2e8f0; background: white; cursor: pointer; color: #718096;
+      transition: all .15s; white-space: nowrap;
+    }
+    .session-copy:hover { border-color: #667eea; color: #667eea; }
+    .session-err-link {
+      font-size: 11px; color: #667eea; text-decoration: none; white-space: nowrap;
+    }
+    .session-err-link:hover { text-decoration: underline; }
+
+    /* Raw OCR */
+    .raw-toggle {
+      width: 100%; text-align: left; padding: 8px 0;
+      border: none; background: none; font-size: 13px; font-weight: 600;
+      color: #718096; cursor: pointer; display: flex; align-items: center; gap: 6px;
+      border-top: 1px solid #edf2f7; margin-top: 4px;
+    }
+    .raw-toggle:hover { color: #4a5568; }
+    .raw-arrow { transition: transform .2s; }
+    .raw-text {
+      margin-top: 10px; background: #1a202c; color: #e2e8f0;
+      border-radius: 8px; padding: 14px; font-size: 12px; font-family: monospace;
+      line-height: 1.7; white-space: pre-wrap; word-break: break-all; max-height: 240px;
+      overflow-y: auto; display: none;
+    }
+
+    /* Loading spinner */
+    .spinner {
+      display: inline-block; width: 20px; height: 20px;
+      border: 3px solid rgba(255,255,255,.4); border-top-color: white;
+      border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div class="page">
+  <h1 class="page-title">OCR 測試</h1>
+  <p class="page-sub">上傳圖片或貼上 URL，快速測試身分證 / 駕照辨識效果</p>
+
+  <div class="layout">
+
+    <!-- Left: Input Panel -->
+    <div class="panel">
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" data-tab="url">透過 URL</button>
+        <button class="tab" data-tab="upload">上傳圖片</button>
+      </div>
+
+      <!-- URL tab -->
+      <div class="tab-content active" id="tab-url">
+        <div class="form-group">
+          <label>圖片 URL</label>
+          <input type="url" id="imageUrl" placeholder="https://example.com/id-card.jpg">
+        </div>
+        <div id="urlPreview" class="preview-wrap">
+          <img id="urlPreviewImg" src="" alt="預覽">
+        </div>
+      </div>
+
+      <!-- Upload tab -->
+      <div class="tab-content" id="tab-upload">
+        <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+          <div class="upload-icon">📁</div>
+          <div class="upload-text">點擊選擇或拖曳圖片至此</div>
+          <div class="upload-sub">支援 JPG、PNG、WEBP，最大 10 MB</div>
+        </div>
+        <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp">
+        <div id="uploadPreview" class="preview-wrap">
+          <img id="uploadPreviewImg" src="" alt="預覽">
+          <div class="preview-name" id="uploadFileName"></div>
+        </div>
+      </div>
+
+      <!-- Common Options -->
+      <div style="padding: 0 20px 20px;">
+        <div class="form-group">
+          <label>證件類型</label>
+          <select id="documentType">
+            <option value="auto">自動辨識</option>
+            <option value="id_card">身分證</option>
+            <option value="driving_license">駕照</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>使用者姓名（輔助辨識，可選）</label>
+          <input type="text" id="displayName" placeholder="小王">
+        </div>
+        <button class="btn btn-primary" id="submitBtn" onclick="submit()">開始辨識</button>
+      </div>
+    </div>
+
+    <!-- Right: Result Panel -->
+    <div class="panel">
+      <div class="panel-header">辨識結果</div>
+      <div id="resultArea">
+        <div class="result-empty">
+          <div class="result-empty-icon">🪪</div>
+          <p>輸入圖片後點擊「開始辨識」</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let currentTab = 'url';
+  let selectedFile = null;
+  let showRaw = false;
+
+  // ── Tab switching ────────────────────────────────────────────────────────────
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      currentTab = btn.dataset.tab;
+      document.getElementById('tab-' + currentTab).classList.add('active');
+    });
+  });
+
+  // ── URL preview ──────────────────────────────────────────────────────────────
+  document.getElementById('imageUrl').addEventListener('input', function () {
+    const url = this.value.trim();
+    const wrap = document.getElementById('urlPreview');
+    const img  = document.getElementById('urlPreviewImg');
+    if (url.startsWith('http')) {
+      img.src = url;
+      wrap.style.display = 'block';
+      img.onerror = () => { wrap.style.display = 'none'; };
+    } else {
+      wrap.style.display = 'none';
+    }
+  });
+
+  // ── File upload ──────────────────────────────────────────────────────────────
+  document.getElementById('fileInput').addEventListener('change', function () {
+    if (!this.files[0]) return;
+    selectedFile = this.files[0];
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('uploadPreviewImg').src = e.target.result;
+      document.getElementById('uploadPreview').style.display = 'block';
+      document.getElementById('uploadFileName').textContent = selectedFile.name + ' (' + (selectedFile.size / 1024).toFixed(1) + ' KB)';
+    };
+    reader.readAsDataURL(selectedFile);
+  });
+
+  const uploadArea = document.getElementById('uploadArea');
+  uploadArea.addEventListener('dragover',  e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+  uploadArea.addEventListener('dragleave', ()  => uploadArea.classList.remove('dragover'));
+  uploadArea.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    const f = e.dataTransfer.files[0];
+    if (!f) return;
+    document.getElementById('fileInput').files = e.dataTransfer.files;
+    document.getElementById('fileInput').dispatchEvent(new Event('change'));
+  });
+
+  // ── URL params auto-load ─────────────────────────────────────────────────────
+  (function () {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('url')) {
+      document.getElementById('imageUrl').value = p.get('url');
+      document.getElementById('imageUrl').dispatchEvent(new Event('input'));
+    }
+    if (p.get('type')) document.getElementById('documentType').value = p.get('type');
+    if (p.get('name')) document.getElementById('displayName').value = p.get('name');
+  })();
+
+  // ── Submit ───────────────────────────────────────────────────────────────────
+  async function submit() {
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>辨識中...';
+    showResult(null, 'loading');
+
+    try {
+      let data;
+      if (currentTab === 'url') {
+        const url = document.getElementById('imageUrl').value.trim();
+        if (!url) { alert('請輸入圖片 URL'); reset(); return; }
+        const body = {
+          imageUrl: url,
+          documentType: document.getElementById('documentType').value,
+          displayName: document.getElementById('displayName').value.trim() || undefined,
+        };
+        const r = await fetch('/api/verify/url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        data = await r.json();
+      } else {
+        if (!selectedFile) { alert('請選擇圖片檔案'); reset(); return; }
+        const form = new FormData();
+        form.append('image', selectedFile);
+        form.append('documentType', document.getElementById('documentType').value);
+        const dn = document.getElementById('displayName').value.trim();
+        if (dn) form.append('displayName', dn);
+        const r = await fetch('/api/verify/upload', { method: 'POST', body: form });
+        data = await r.json();
+      }
+      showResult(data);
+    } catch (e) {
+      showResult({ success: false, error: e.message || '網路錯誤' });
+    } finally {
+      reset();
+    }
+  }
+
+  function reset() {
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = false;
+    btn.textContent = '開始辨識';
+  }
+
+  // ── Render Result ────────────────────────────────────────────────────────────
+  const FIELD_LABELS = {
+    idNumber:      '身分證字號',
+    name:          '姓名',
+    gender:        '性別',
+    birthDate:     '出生日期',
+    issueDate:     '發證日期',
+    issueLocation: '發證地',
+    licenseNumber: '駕照號碼',
+    licenseType:   '駕照種類',
+  };
+
+  function showResult(data, state) {
+    const area = document.getElementById('resultArea');
+
+    if (state === 'loading') {
+      area.innerHTML = `<div class="result-empty"><div class="result-empty-icon" style="animation:spin .7s linear infinite">⟳</div><p>辨識中，請稍候...</p></div>`;
+      return;
+    }
+
+    if (!data) {
+      area.innerHTML = `<div class="result-empty"><div class="result-empty-icon">🪪</div><p>輸入圖片後點擊「開始辨識」</p></div>`;
+      return;
+    }
+
+    if (!data.success && !data.data) {
+      area.innerHTML = `
+        <div class="result-content">
+          <div class="result-banner error"><span class="banner-icon">❌</span>${esc(data.error || '辨識失敗')}</div>
+          ${sessionBlock(data.sessionId)}
+        </div>`;
+      return;
+    }
+
+    const d = data.data || {};
+    const v = data.validation || {};
+    const conf = data.confidence || 0;
+    const missing = v.missingFields || [];
+    const isComplete = v.isComplete;
+    const isSuccess  = data.success && isComplete;
+
+    const banner = isSuccess
+      ? `<div class="result-banner success"><span class="banner-icon">✅</span>辨識成功，所有欄位完整</div>`
+      : isComplete === false
+      ? `<div class="result-banner partial"><span class="banner-icon">⚠️</span>辨識完成，但部分欄位缺失：${missing.join('、')}</div>`
+      : `<div class="result-banner error"><span class="banner-icon">❌</span>${esc(data.message || '辨識失敗')}</div>`;
+
+    const confColor = conf >= 70 ? '#38a169' : conf >= 40 ? '#dd6b20' : '#e53e3e';
+
+    const fieldOrder = ['idNumber','licenseNumber','name','gender','birthDate','issueDate','issueLocation','licenseType'];
+    const fields = fieldOrder.filter(k => k in d).map(k => {
+      const val = d[k];
+      const isMissing = !val;
+      return `
+        <div class="field${isMissing ? ' missing' : ''}">
+          <div class="field-label">${FIELD_LABELS[k] || k}</div>
+          <div class="field-value${isMissing ? ' empty' : ''}">${isMissing ? '未辨識' : esc(val)}</div>
+        </div>`;
+    }).join('');
+
+    const rawText = (data.rawText || '').trim();
+    const rawBlock = rawText ? `
+      <button class="raw-toggle" onclick="toggleRaw(this)">
+        <span class="raw-arrow">▶</span> 原始 OCR 文字
+      </button>
+      <pre class="raw-text">${esc(rawText)}</pre>` : '';
+
+    area.innerHTML = `
+      <div class="result-content">
+        ${banner}
+        <div class="confidence-row">
+          <span>信心值</span>
+          <div class="confidence-bar-wrap">
+            <div class="confidence-bar" style="width:${conf}%;background:${confColor}"></div>
+          </div>
+          <span class="confidence-val" style="color:${confColor}">${conf.toFixed(1)}%</span>
+        </div>
+        <div class="field-grid">${fields}</div>
+        ${sessionBlock(data.sessionId)}
+        ${rawBlock}
+      </div>`;
+  }
+
+  function sessionBlock(id) {
+    if (!id) return '';
+    const errUrl = `/error-logs.html?sessionId=${encodeURIComponent(id)}`;
+    return `
+      <div class="session-row">
+        <span class="session-label">Session</span>
+        <span class="session-id" title="${id}">${id}</span>
+        <button class="session-copy" onclick="copySession('${id}')">複製</button>
+        <a class="session-err-link" href="${errUrl}" target="_blank">查錯誤 →</a>
+      </div>`;
+  }
+
+  function toggleRaw(btn) {
+    const pre = btn.nextElementSibling;
+    const open = pre.style.display === 'block';
+    pre.style.display = open ? 'none' : 'block';
+    btn.querySelector('.raw-arrow').style.transform = open ? '' : 'rotate(90deg)';
+  }
+
+  function copySession(id) {
+    navigator.clipboard.writeText(id).catch(() => {});
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+</script>
+</body>
+</html>
