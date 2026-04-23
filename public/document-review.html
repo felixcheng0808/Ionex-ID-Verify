@@ -2080,9 +2080,10 @@
                 }).then(r => r.json());
 
                 if (result.success) {
+                    const cacheNote = result.fromCache ? ' <span style="font-size:11px;opacity:.7">（快取）</span>' : '';
                     el.innerHTML = result.hasViolation
-                        ? `<div class="violation-result danger">⚠️ 有駕照違規記錄，請謹慎評估</div>`
-                        : `<div class="violation-result ok">✅ 查無駕照違規記錄</div>`;
+                        ? `<div class="violation-result danger">⚠️ 有駕照違規記錄，請謹慎評估${cacheNote}</div>`
+                        : `<div class="violation-result ok">✅ 查無駕照違規記錄${cacheNote}</div>`;
                 } else {
                     el.innerHTML = `
                         <div class="violation-result error">❌ 查詢失敗：${result.error}</div>

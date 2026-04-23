@@ -12,10 +12,14 @@ const CAPTCHA_SCRIPT = path.join(__dirname, '../../scripts/solve_captcha.py');
 /**
  * 網站自動化服務 - 用於自動填寫監理服務網表單
  */
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 分鐘
+
 class WebAutomationService {
   constructor() {
     this.browser = null;
     this.mvdisUrl = 'https://www.mvdis.gov.tw/m3-emv-vil/vil/driverLicensePenalty#gsc.tab=0';
+    // key: `${idNumber}:${birthDate}` → { result: boolean, expiresAt: timestamp }
+    this._cache = new Map();
   }
 
   /**
@@ -23,12 +27,20 @@ class WebAutomationService {
    * 自動填寫監理服務網表單、辨識驗證碼並查詢違規記錄
    * @param {string} idNumber - 身分證字號
    * @param {string} birthDate - 生日 (民國年格式，例如: "74年1月1日")
-   * @param {object} options - 選項 (maxRetries: 最大重試次數，預設 5)
+   * @param {object} options - 選項 (maxRetries: 最大重試次數，預設 3)
    * @returns {Promise<boolean>} true: 有違規記錄, false: 無違規記錄
    * @throws {Error} 當查詢失敗時拋出錯誤
    */
   async isViolationRecords(idNumber, birthDate, options = {}) {
-    const maxRetries = options.maxRetries || 5;
+    const maxRetries = options.maxRetries || 3;
+
+    // 快取命中 — 30 分鐘內同一人不重打監理所
+    const cacheKey = `${idNumber}:${birthDate}`;
+    const cached = this._cache.get(cacheKey);
+    if (cached && Date.now() < cached.expiresAt) {
+      console.log(`[ViolationCache] 命中快取 (${idNumber})，剩餘 ${Math.round((cached.expiresAt - Date.now()) / 60000)} 分鐘`);
+      return cached.result;
+    }
 
     // 1. 驗證輸入資料
     if (!idNumber) {
@@ -64,7 +76,11 @@ class WebAutomationService {
 
       if (result.success) {
         console.log('\n✅ 表單處理成功！');
-        // 回傳違規記錄判斷結果
+        // 寫入快取，30 分鐘內相同身分證字號不重打
+        this._cache.set(cacheKey, {
+          result: result.data.hasViolation,
+          expiresAt: Date.now() + CACHE_TTL_MS,
+        });
         return result.data.hasViolation;
       }
 

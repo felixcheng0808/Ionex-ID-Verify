@@ -224,8 +224,11 @@ apiRouter.post('/check-violation', async (req, res) => {
   }
 
   try {
+    const cacheKey = `${idNumber}:${birthDate}`;
+    const cached = webAutomationService._cache.get(cacheKey);
+    const fromCache = !!(cached && Date.now() < cached.expiresAt);
     const hasViolation = await webAutomationService.isViolationRecords(idNumber, birthDate);
-    return res.json({ success: true, hasViolation, sessionId });
+    return res.json({ success: true, hasViolation, fromCache, sessionId });
   } catch (error) {
     await logError({
       sessionId, endpoint,
