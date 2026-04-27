@@ -79,7 +79,7 @@ class IDCardController {
       // 3. 預處理圖片
       console.log('正在預處理圖片...');
       try {
-        if (ocrService.useGoogleVision) {
+        if (ocrService.useGoogleVision || ocrService.usePaddleOCR) {
           processedFile = await imageService.preprocessForGoogleVision(downloadedFile);
         } else {
           processedFile = await imageService.preprocessImage(downloadedFile);
@@ -289,7 +289,7 @@ class IDCardController {
       // 2. 預處理圖片
       console.log('正在預處理圖片...');
       try {
-        if (ocrService.useGoogleVision) {
+        if (ocrService.useGoogleVision || ocrService.usePaddleOCR) {
           processedFile = await imageService.preprocessForGoogleVision(uploadedFile);
         } else {
           processedFile = await imageService.preprocessImage(uploadedFile);
