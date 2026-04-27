@@ -1,5 +1,5 @@
 require('dotenv/config');
-const { chromium } = require('playwright');
+const { firefox } = require('playwright');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const path = require('path');
@@ -128,14 +128,14 @@ class WebAutomationService {
     let page = null;
 
     try {
-      // 啟動 Playwright Chromium 瀏覽器
-      browser = await chromium.launch({
+      // 啟動 Firefox（Chromium 與監理所 SSL cipher 不相容）
+      browser = await firefox.launch({
         headless: true,
-        slowMo: 100 // 放慢操作速度，更容易觀察
       });
 
       context = await browser.newContext({
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        ignoreHTTPSErrors: true,
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0'
       });
 
       page = await context.newPage();
