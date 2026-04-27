@@ -102,6 +102,7 @@ class IDCardController {
       try {
         ocrResult = await ocrService.recognizeText(processedFile);
       } catch (err) {
+        err._logged = true;
         await logError({
           sessionId, endpoint,
           step: STEPS.OCR_RECOGNITION,
@@ -114,6 +115,7 @@ class IDCardController {
       }
 
       // OCR 空結果或低信心警告
+      // confidence === null 代表 PaddleOCR 未回傳評分（非真正低信心），不記錄
       const text = ocrResult.text || '';
       if (!text.trim()) {
         await logError({
@@ -123,12 +125,12 @@ class IDCardController {
           message: 'OCR 未辨識到任何文字',
           context: { ...baseContext, confidence: ocrResult.confidence },
         });
-      } else if (ocrResult.confidence < 30) {
+      } else if (ocrResult.confidence !== null && ocrResult.confidence < 30) {
         await logError({
           sessionId, endpoint,
           step: STEPS.OCR_RECOGNITION,
           errorCode: ERROR_CODES.OCR_LOW_CONFIDENCE,
-          message: `OCR 信心值過低: ${ocrResult.confidence}%`,
+          message: `OCR 信心值過低: ${ocrResult.confidence.toFixed(1)}%`,
           context: { ...baseContext, confidence: ocrResult.confidence },
         });
       }
@@ -160,6 +162,7 @@ class IDCardController {
           parseResult = parserService.parseIDCard(ocrResult, { displayName });
         }
       } catch (err) {
+        err._logged = true;
         await logError({
           sessionId, endpoint,
           step: STEPS.DATA_PARSING,
@@ -174,7 +177,7 @@ class IDCardController {
       // 6. 驗證解析結果
       const validation = parserService.validateParseResult(parseResult);
 
-      // 記錄欄位缺失的情況
+      // 記錄欄位缺失的情況，加入 rawText 方便後續 debug 姓名辨識失敗問題
       if (!validation.isComplete) {
         await logError({
           sessionId, endpoint,
@@ -187,6 +190,7 @@ class IDCardController {
             isDrivingLicense,
             missingFields: validation.missingFields,
             extractedData: parseResult.data,
+            rawText: text.slice(0, 300),
           },
         });
       }
@@ -308,6 +312,7 @@ class IDCardController {
       try {
         ocrResult = await ocrService.recognizeText(processedFile);
       } catch (err) {
+        err._logged = true;
         await logError({
           sessionId, endpoint,
           step: STEPS.OCR_RECOGNITION,
@@ -328,12 +333,12 @@ class IDCardController {
           message: 'OCR 未辨識到任何文字',
           context: { ...baseContext, confidence: ocrResult.confidence },
         });
-      } else if (ocrResult.confidence < 30) {
+      } else if (ocrResult.confidence !== null && ocrResult.confidence < 30) {
         await logError({
           sessionId, endpoint,
           step: STEPS.OCR_RECOGNITION,
           errorCode: ERROR_CODES.OCR_LOW_CONFIDENCE,
-          message: `OCR 信心值過低: ${ocrResult.confidence}%`,
+          message: `OCR 信心值過低: ${ocrResult.confidence.toFixed(1)}%`,
           context: { ...baseContext, confidence: ocrResult.confidence },
         });
       }
@@ -355,6 +360,7 @@ class IDCardController {
           parseResult = parserService.parseIDCard(ocrResult);
         }
       } catch (err) {
+        err._logged = true;
         await logError({
           sessionId, endpoint,
           step: STEPS.DATA_PARSING,
@@ -381,6 +387,7 @@ class IDCardController {
             isDrivingLicense,
             missingFields: validation.missingFields,
             extractedData: parseResult.data,
+            rawText: text.slice(0, 300),
           },
         });
       }

@@ -107,7 +107,7 @@ class OCRService {
       }
     } catch (error) {
       console.error('OCR 錯誤詳情:', error);
-      throw new Error(`OCR 辨識失敗: ${error.message}`);
+      throw new Error(`OCR 辨識失敗: ${error?.message || String(error)}`);
     }
   }
 
@@ -236,7 +236,9 @@ class OCRService {
         });
       }
 
-      const avgConfidence = result.length > 0 ? totalConfidence / result.length : 0;
+      // PaddleOCR 不一定回傳 score，avgConfidence=0 且有文字時代表「無評分資料」而非真正低信心
+      const hasScores = result.some(d => d.score != null && d.score > 0);
+      const avgConfidence = (result.length > 0 && hasScores) ? totalConfidence / result.length : null;
 
       console.log('- 文字長度:', fullText.length);
       console.log('- 平均信心度:', avgConfidence.toFixed(2) + '%');
