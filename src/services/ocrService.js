@@ -241,7 +241,7 @@ class OCRService {
       const avgConfidence = (result.length > 0 && hasScores) ? totalConfidence / result.length : null;
 
       console.log('- 文字長度:', fullText.length);
-      console.log('- 平均信心度:', avgConfidence.toFixed(2) + '%');
+      console.log('- 平均信心度:', avgConfidence !== null ? avgConfidence.toFixed(2) + '%' : '無評分資料');
       console.log('- 前100字元:', fullText.substring(0, 100));
 
       return {
