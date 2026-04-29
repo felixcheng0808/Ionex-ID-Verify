@@ -489,8 +489,12 @@ class ParserService {
     const patterns = [
       // 標準格式：出生日期 92年7月17日
       /出生[\s]*[日期]*[\s]*[：:]*[\s]*(\d{2,3})[\s年\.]*(\d{1,2})[\s月\.]*(\d{1,2})/,
+      // 駕照格式：出生年月日 92年7月17日 或 92.07.17
+      /出生[\s]*年[\s]*月[\s]*日[\s]*[：:]*[\s]*(\d{2,3})[\s年\.]*(\d{1,2})[\s月\.]*(\d{1,2})/,
       // OCR 可能把「出生」辨識錯，但「年月日」後面跟民國年格式
       /年月日[\s]*民?國?[\s]*(\d{2,3})[\s]*年[\s]*(\d{1,2})[\s]*月?[\s]*(\d{1,2})/,
+      // 只剩「生」或「生期」的 OCR 誤讀
+      /生[\s]*期[\s]*[：:]*[\s]*(\d{2,3})[\s年\.]*(\d{1,2})[\s月\.]*(\d{1,2})/,
       // 生日格式
       /生[\s]*日[\s]*[：:]*[\s]*(\d{2,3})[\.\-](\d{1,2})[\.\-](\d{1,2})/,
       // 民國XX年XX月XX日（排除發證日期附近的）
@@ -525,6 +529,22 @@ class ParserService {
       }
     }
 
+    // 嘗試「名生期 [姓名] DATE」格式：名字後接出生日期（各種分隔符變體）
+    // 例：名生期 洪聖皓 07502:01  /  名生期 林宗餐\n63.0610
+    const mingShengQiMatch = text.match(
+      /名[\s]*生[\s]*期[\s]*[一-龥]{2,5}[\s\n]*(\d{2,3})\.?(\d{2})[\.：:—-](\d{2})/
+    );
+    if (mingShengQiMatch) {
+      const year = mingShengQiMatch[1].padStart(2, '0');
+      const month = mingShengQiMatch[2].padStart(2, '0');
+      const day = mingShengQiMatch[3].padStart(2, '0');
+      const mStr = parseInt(month), dStr = parseInt(day);
+      if (mStr >= 1 && mStr <= 12 && dStr >= 1 && dStr <= 31) {
+        console.log(`提取出生日期 (名生期格式): ${year}年${month}月${day}日`);
+        return `${year}年${month}月${day}日`;
+      }
+    }
+
     // 最後嘗試匹配點分隔格式，找所有日期然後排除發證日期
     const allDates = text.match(/(\d{2,3})\.(\d{1,2})\.(\d{1,2})/g);
     if (allDates && allDates.length > 0) {
@@ -541,6 +561,22 @@ class ParserService {
             console.log(`提取出生日期 (fallback): ${year}年${month}月${day}日`);
             return `${year}年${month}月${day}日`;
           }
+        }
+      }
+    }
+
+    // 嘗試無第二個點的格式：YY.MMDD 或 YYY.MMDD（駕照 OCR 常見）
+    const dotlessDates = [...text.matchAll(/(\d{2,3})\.(\d{2})(\d{2})\b/g)];
+    if (dotlessDates.length > 0) {
+      const issueDateIndex = text.search(/發證|初發/);
+      for (const match of dotlessDates) {
+        const month = parseInt(match[2]), day = parseInt(match[3]);
+        if (month < 1 || month > 12 || day < 1 || day > 31) continue;
+        const dateIndex = match.index;
+        if (issueDateIndex === -1 || Math.abs(dateIndex - issueDateIndex) > 20) {
+          const year = match[1].padStart(2, '0');
+          console.log(`提取出生日期 (dotless fallback): ${year}年${match[2]}月${match[3]}日`);
+          return `${year}年${match[2]}月${match[3]}日`;
         }
       }
     }
@@ -609,8 +645,8 @@ class ParserService {
       warnings: []
     };
 
-    const requiredFields = ['idNumber', 'name', 'birthDate'];
-    const optionalFields = ['gender', 'issueDate', 'issueLocation'];
+    const requiredFields = ['idNumber', 'birthDate'];
+    const optionalFields = ['name', 'gender', 'issueDate', 'issueLocation'];
 
     // 檢查必填欄位
     for (const field of requiredFields) {
@@ -827,10 +863,15 @@ class ParserService {
    * @returns {string|null}
    */
   extractDrivingLicenseName(text) {
-    // 駕照上的姓名通常在「姓名」或直接在身分證字號後
     const namePatterns = [
+      // 最常見：名字在「姓名」標籤上方一行（如：謝孟纯\n姓名）
+      /([^\n\r]{2,4})\n[\s]*姓[\s]*名/,
+      // OCR 把「姓名 出生日期」誤讀為「名生期」，名字接在後面（如：名生期 余宗惠 性别）
+      /名[\s]*生[\s]*期[\s]*([^\n\r\s0-9：:.\-]{2,4})/,
+      // 標準：「姓名」標籤後接名字
       /姓[\s]*名[\s]*[：:]*[\s]*([^\n\r]{2,4})/,
-      /[A-Z]\d{9}[\s\n]*([^\n\r]{2,4})/,  // 身分證字號後的名字
+      // 身分證字號後的名字
+      /[A-Z]\d{9}[\s\n]*([^\n\r]{2,4})/,
       /號[\s]*碼[\s]*[A-Z]\d+[\s\n]+([^\n\r]{2,4})/
     ];
 
