@@ -170,7 +170,9 @@ class WebAutomationService {
       }
 
       const timestamp = Date.now();
-      const captchaImagePath = path.join(__dirname, `../../temp/captcha_${timestamp}.png`);
+      const tempDir = path.join(__dirname, '../../temp');
+      await fs.mkdir(tempDir, { recursive: true });
+      const captchaImagePath = path.join(tempDir, `captcha_${timestamp}.png`);
       await captchaElement.screenshot({ path: captchaImagePath });
       console.log('✅ 驗證碼截圖完成');
 
@@ -274,6 +276,11 @@ class WebAutomationService {
       return text;
     } catch (error) {
       console.error('驗證碼辨識失敗:', error.message);
+      if (error.stderr) console.error('  python3 stderr:', error.stderr.trim());
+      if (error.stdout) console.error('  python3 stdout:', error.stdout.trim());
+      console.error(`  exit code: ${error.code}, signal: ${error.signal}`);
+      console.error(`  CAPTCHA_SCRIPT: ${CAPTCHA_SCRIPT}`);
+      console.error(`  imagePath: ${imagePath}`);
       return '';
     }
   }
@@ -287,5 +294,39 @@ class WebAutomationService {
     console.log('WebAutomationService 已終止');
   }
 }
+
+// 啟動時環境自檢：確認 python3 與 ddddocr 可用
+(async () => {
+  const { execFile } = require('child_process');
+  const { promisify } = require('util');
+  const _exec = promisify(execFile);
+
+  // 1. 確認 python3 可執行
+  try {
+    const { stdout } = await _exec('python3', ['--version']);
+    console.log(`[EnvCheck] python3 OK: ${stdout.trim()}`);
+  } catch (e) {
+    console.error('[EnvCheck] ❌ python3 不可用:', e.message);
+    console.error('  → 請確認 python3 已安裝且在 PATH 中');
+    return;
+  }
+
+  // 2. 確認 ddddocr 可 import
+  try {
+    await _exec('python3', ['-c', 'import ddddocr']);
+    console.log('[EnvCheck] ddddocr OK');
+  } catch (e) {
+    console.error('[EnvCheck] ❌ ddddocr 未安裝:', e.stderr?.trim() || e.message);
+    console.error('  → 請執行: pip3 install ddddocr');
+  }
+
+  // 3. 確認 CAPTCHA_SCRIPT 存在
+  try {
+    await fs.access(CAPTCHA_SCRIPT);
+    console.log(`[EnvCheck] CAPTCHA_SCRIPT OK: ${CAPTCHA_SCRIPT}`);
+  } catch {
+    console.error(`[EnvCheck] ❌ 找不到 CAPTCHA_SCRIPT: ${CAPTCHA_SCRIPT}`);
+  }
+})();
 
 module.exports = new WebAutomationService();
