@@ -813,47 +813,6 @@
             font-weight: bold;
         }
 
-        .violation-result {
-            margin-top: 16px;
-            padding: 14px 16px;
-            border-radius: 10px;
-            font-weight: bold;
-            font-size: 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .violation-result.checking {
-            background: #f8f9ff;
-            color: #667eea;
-            border: 2px solid #e0e8ff;
-        }
-
-        .violation-result.ok {
-            background: #d4edda;
-            color: #155724;
-            border: 2px solid #c3e6cb;
-        }
-
-        .violation-result.danger {
-            background: #f8d7da;
-            color: #721c24;
-            border: 2px solid #f5c6cb;
-        }
-
-        .violation-result.warning {
-            background: #fff3cd;
-            color: #856404;
-            border: 2px solid #ffeeba;
-        }
-
-        .violation-result.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 2px solid #f5c6cb;
-        }
-
         .review-input {
             flex: 1;
             padding: 7px 10px;
@@ -873,24 +832,6 @@
         .review-input.unrecognized {
             border-color: #ffc107;
             background: #fffdf0;
-        }
-
-        .manual-query-btn {
-            margin-top: 10px;
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-
-        .manual-query-btn:hover {
-            opacity: 0.9;
         }
 
         /* 手機響應式 Tab 與搜尋 */
@@ -2022,11 +1963,7 @@
                     ${makeEditRow('身分證字號', 'r-idNumber', idNumber, idFromLicense ? '來自駕照' : '')}
                     ${makeEditRow('出生年月日', 'r-birthDate', birthDate, '')}
                     ${makeReadRow('發照日期', issueDate)}
-                    ${makeReadRow('駕照種類', licenseType, licenseTypeBadge)}
-                    <div id="r-violation"></div>`;
-
-                // 觸發違規查詢
-                runViolationCheck(idNumber, birthDate, hasLicense, validType, licenseType);
+                    ${makeReadRow('駕照種類', licenseType, licenseTypeBadge)}`;
 
             } catch (error) {
                 modalBody.innerHTML = `
@@ -2034,89 +1971,6 @@
                         ⚠️ 辨識失敗: ${error.message}
                     </div>`;
             }
-        }
-
-        async function runViolationCheck(idNumber, birthDate, hasLicense, validType, licenseType) {
-            const el = document.getElementById('r-violation');
-            if (!el) return;
-
-            // 例外：無駕照
-            if (!hasLicense) {
-                el.innerHTML = `<div class="violation-result warning">⚠️ 未提供駕照，無法查詢違規記錄</div>`;
-                return;
-            }
-
-            // 例外：駕照種類不支援
-            if (!validType) {
-                const typeText = licenseType ? `（${licenseType}）` : '';
-                el.innerHTML = `
-                    <div class="violation-result warning">⚠️ 駕照種類${typeText}不支援自動查詢，僅限普通重型機車、大型重型機車</div>`;
-                return;
-            }
-
-            // 例外：缺少必要欄位
-            const curId    = document.getElementById('r-idNumber')?.value?.trim()  || idNumber;
-            const curBirth = document.getElementById('r-birthDate')?.value?.trim() || birthDate;
-
-            if (!curId || !curBirth) {
-                el.innerHTML = `
-                    <div class="violation-result warning">❓ 無法自動查詢，請補齊身分證字號與出生日期</div>
-                    <button class="manual-query-btn" onclick="manualViolationCheck()">🔍 手動查詢違規記錄</button>`;
-                return;
-            }
-
-            // 查詢中
-            el.innerHTML = `
-                <div class="violation-result checking">
-                    <div class="spinner" style="width:20px;height:20px;border-width:3px;margin:0;flex-shrink:0;"></div>
-                    查詢違規記錄中...
-                </div>`;
-
-            try {
-                const result = await fetch('/api/check-violation', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ idNumber: curId, birthDate: curBirth })
-                }).then(r => r.json());
-
-                if (result.success) {
-                    const cacheNote = result.fromCache ? ' <span style="font-size:11px;opacity:.7">（快取）</span>' : '';
-                    el.innerHTML = result.hasViolation
-                        ? `<div class="violation-result danger">⚠️ 有駕照違規記錄，請謹慎評估${cacheNote}</div>`
-                        : `<div class="violation-result ok">✅ 查無駕照違規記錄${cacheNote}</div>`;
-                } else {
-                    el.innerHTML = `
-                        <div class="violation-result error">❌ 查詢失敗：${result.error}</div>
-                        <button class="manual-query-btn" onclick="manualViolationCheck()">🔄 重新查詢</button>`;
-                }
-            } catch (err) {
-                el.innerHTML = `
-                    <div class="violation-result error">❌ 查詢失敗：${err.message}</div>
-                    <button class="manual-query-btn" onclick="manualViolationCheck()">🔄 重新查詢</button>`;
-            }
-        }
-
-        async function manualViolationCheck() {
-            const idNumber  = document.getElementById('r-idNumber')?.value?.trim();
-            const birthDate = document.getElementById('r-birthDate')?.value?.trim();
-            const licenseTypeEl = document.querySelector('#documentModal .info-value span');
-
-            if (!idNumber || !birthDate) {
-                alert('請填寫身分證字號與出生日期（格式：YYYMMDD，例：0800402）');
-                return;
-            }
-
-            // 取得當前駕照種類（從 DOM 讀取）
-            const licenseTypeRows = document.querySelectorAll('#documentModal .info-row');
-            let licenseType = '';
-            licenseTypeRows.forEach(row => {
-                if (row.querySelector('.info-label')?.textContent === '駕照種類') {
-                    licenseType = row.querySelector('.info-value span')?.textContent || '';
-                }
-            });
-
-            const validType = isValidLicenseType(licenseType);
-            await runViolationCheck(idNumber, birthDate, true, validType, licenseType);
         }
 
         function showError(message) {

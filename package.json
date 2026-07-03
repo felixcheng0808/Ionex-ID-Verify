@@ -11,8 +11,7 @@
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "test": "jest --coverage",
-    "test:watch": "jest --watch",
-    "postinstall": "npx playwright install chromium && npx playwright install-deps chromium"
+    "test:watch": "jest --watch"
   },
   "keywords": [
     "taiwan",
@@ -33,7 +32,6 @@
     "express": "^5.1.0",
     "joi": "^18.0.1",
     "multer": "^2.0.2",
-    "playwright": "^1.56.1",
     "puppeteer": "^24.29.1",
     "sharp": "^0.34.5",
     "tesseract.js": "^6.0.1",

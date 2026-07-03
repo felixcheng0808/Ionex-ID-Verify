@@ -205,43 +205,6 @@ apiRouter.post('/rental-user/add', async (req, res) => {
   }
 });
 
-// 查詢駕照違規記錄
-apiRouter.post('/check-violation', async (req, res) => {
-  const webAutomationService = require('./services/webAutomationService');
-  const { idNumber, birthDate } = req.body;
-  const sessionId = crypto.randomUUID();
-  const endpoint = '/api/check-violation';
-
-  if (!idNumber || !birthDate) {
-    await logError({
-      sessionId, endpoint,
-      step: STEPS.REQUEST_VALIDATION,
-      errorCode: ERROR_CODES.VALIDATION_ERROR,
-      message: '缺少身分證字號或出生日期',
-      context: { body: req.body },
-    }).catch(() => {});
-    return res.status(400).json({ success: false, error: '缺少身分證字號或出生日期' });
-  }
-
-  try {
-    const cacheKey = `${idNumber}:${birthDate}`;
-    const cached = webAutomationService._cache.get(cacheKey);
-    const fromCache = !!(cached && Date.now() < cached.expiresAt);
-    const hasViolation = await webAutomationService.isViolationRecords(idNumber, birthDate);
-    return res.json({ success: true, hasViolation, fromCache, sessionId });
-  } catch (error) {
-    await logError({
-      sessionId, endpoint,
-      step: STEPS.VIOLATION_CHECK,
-      errorCode: ERROR_CODES.VIOLATION_CHECK_FAILED,
-      message: error.message,
-      context: { idNumber },
-      error,
-    }).catch(() => {});
-    return res.status(500).json({ success: false, error: error.message, sessionId });
-  }
-});
-
 // ── 錯誤日誌查詢 ──────────────────────────────────────────────────────────────
 
 // 查詢錯誤紀錄
