@@ -4,18 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>錯誤紀錄查詢 - Ionex ID Verify</title>
+  <link rel="stylesheet" href="/css/shadcn.css">
   <script src="/nav.js"></script>
   <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      font-family: 'Microsoft JhengHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-      background: #f0f2f5;
-      min-height: 100vh;
-    }
-
     /* ── Layout ── */
-    .main { max-width: 1400px; margin: 0 auto; padding: 24px 20px; }
+    .main { max-width: 1400px; margin: 0 auto; padding: 20px 20px 40px; }
+    .page-toolbar {
+      max-width: 1400px; margin: 0 auto; padding: 16px 20px 0;
+      display: flex; align-items: center; gap: 10px; justify-content: flex-end;
+      flex-wrap: wrap;
+    }
 
     /* ── Stats Bar ── */
     .stats-bar {
@@ -24,124 +22,65 @@
       gap: 14px;
       margin-bottom: 20px;
     }
-    .stat-card {
-      background: white;
-      border-radius: 12px;
-      padding: 16px 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,.07);
-      border-left: 4px solid #667eea;
-    }
-    .stat-card.red    { border-color: #e53e3e; }
-    .stat-card.orange { border-color: #dd6b20; }
-    .stat-card.yellow { border-color: #d69e2e; }
-    .stat-card.green  { border-color: #38a169; }
-    .stat-card.blue   { border-color: #3182ce; }
-    .stat-label { font-size: 12px; color: #718096; margin-bottom: 4px; }
-    .stat-value { font-size: 28px; font-weight: 700; color: #2d3748; }
-    .stat-sub   { font-size: 11px; color: #a0aec0; margin-top: 2px; }
+    .stat-card { border-left: 4px solid hsl(var(--primary)); padding: 16px 20px; }
+    .stat-card.red    { border-left-color: hsl(var(--destructive)); }
+    .stat-card.orange { border-left-color: hsl(30 80% 45%); }
+    .stat-card.yellow { border-left-color: hsl(var(--warning)); }
+    .stat-card.green  { border-left-color: hsl(var(--success)); }
+    .stat-card.blue   { border-left-color: hsl(210 70% 50%); }
+    .stat-label { font-size: 12px; color: hsl(var(--muted-foreground)); margin-bottom: 4px; }
+    .stat-value { font-size: 26px; font-weight: 700; }
 
     /* ── Filter Panel ── */
-    .filter-panel {
-      background: white;
-      border-radius: 12px;
-      padding: 20px 24px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,.07);
-    }
-    .filter-panel h3 { font-size: 14px; font-weight: 600; color: #4a5568; margin-bottom: 14px; }
+    .filter-panel { padding: 20px 24px; margin-bottom: 20px; }
+    .filter-panel h3 { font-size: 14px; font-weight: 700; margin-bottom: 14px; }
     .filter-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 12px;
-      align-items: end;
+      gap: 12px; align-items: end;
     }
-    .filter-group label {
-      display: block; font-size: 12px; color: #718096; margin-bottom: 5px; font-weight: 600;
+    .filter-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    @media (max-width: 640px) {
+      .filter-actions .btn { flex: 1; }
     }
-    .filter-group input,
-    .filter-group select {
-      width: 100%;
-      padding: 8px 10px;
-      border: 1.5px solid #e2e8f0;
-      border-radius: 8px;
-      font-size: 13px;
-      color: #2d3748;
-      background: #f7fafc;
-      transition: border-color .2s;
-    }
-    .filter-group input:focus,
-    .filter-group select:focus {
-      outline: none; border-color: #667eea; background: white;
-    }
-    .filter-actions { display: flex; gap: 8px; }
-    .btn {
-      padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
-      cursor: pointer; border: none; transition: all .2s;
-    }
-    .btn-primary { background: #667eea; color: white; }
-    .btn-primary:hover { background: #5a67d8; }
-    .btn-secondary { background: #edf2f7; color: #4a5568; }
-    .btn-secondary:hover { background: #e2e8f0; }
-    .btn-danger { background: #fed7d7; color: #c53030; }
-    .btn-danger:hover { background: #feb2b2; }
 
     /* ── Breakdown Cards ── */
-    .breakdown-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 20px;
-    }
+    .breakdown-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
     @media (max-width: 768px) { .breakdown-row { grid-template-columns: 1fr; } }
-    .breakdown-card {
-      background: white; border-radius: 12px; padding: 18px 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,.07);
-    }
-    .breakdown-card h3 { font-size: 13px; font-weight: 700; color: #4a5568; margin-bottom: 12px; }
+    .breakdown-card { padding: 18px 20px; }
+    .breakdown-card h3 { font-size: 13px; font-weight: 700; margin-bottom: 12px; }
     .breakdown-item {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 6px 0; border-bottom: 1px solid #f0f2f5; font-size: 13px;
+      padding: 6px 0; border-bottom: 1px solid hsl(var(--border)); font-size: 13px;
     }
     .breakdown-item:last-child { border-bottom: none; }
-    .breakdown-bar-wrap { flex: 1; margin: 0 12px; height: 6px; background: #edf2f7; border-radius: 3px; overflow: hidden; }
-    .breakdown-bar { height: 100%; background: #667eea; border-radius: 3px; transition: width .4s; }
-    .breakdown-count { font-weight: 700; color: #2d3748; min-width: 28px; text-align: right; }
-    .breakdown-label { color: #4a5568; min-width: 0; }
-    .tag {
-      display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;
-    }
+    .breakdown-bar-wrap { flex: 1; margin: 0 12px; height: 6px; background: hsl(var(--secondary)); border-radius: 3px; overflow: hidden; }
+    .breakdown-bar { height: 100%; background: hsl(var(--primary)); border-radius: 3px; transition: width .4s; }
+    .breakdown-count { font-weight: 700; min-width: 28px; text-align: right; }
+    .breakdown-label { color: hsl(var(--secondary-foreground)); min-width: 0; }
 
     /* ── Table ── */
-    .table-panel {
-      background: white; border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,.07); overflow: hidden;
-    }
+    .table-panel { overflow: hidden; }
     .table-toolbar {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 20px; border-bottom: 1px solid #edf2f7;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;
+      padding: 16px 20px; border-bottom: 1px solid hsl(var(--border));
     }
-    .table-toolbar h3 { font-size: 14px; font-weight: 700; color: #2d3748; }
-    .table-meta { font-size: 12px; color: #a0aec0; }
-    .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    thead th {
-      padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 700;
-      color: #718096; text-transform: uppercase; letter-spacing: .05em;
-      background: #f7fafc; border-bottom: 1px solid #e2e8f0;
+    .table-toolbar h3 { font-size: 14px; font-weight: 700; }
+    .table-meta { font-size: 12px; color: hsl(var(--muted-foreground)); }
+    #errorTable.table { min-width: 720px; }
+    @media (max-width: 640px) {
+      #errorTable.table { min-width: 0; }
+      .td-msg { max-width: none; }
     }
-    tbody tr { border-bottom: 1px solid #f0f2f5; transition: background .15s; cursor: pointer; }
-    tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: #f7fafc; }
-    tbody td { padding: 12px 16px; color: #4a5568; vertical-align: middle; }
-    .td-time { font-family: monospace; font-size: 12px; color: #718096; white-space: nowrap; }
-    .td-session { font-family: monospace; font-size: 11px; color: #a0aec0; }
+    .td-time { font-family: monospace; font-size: 12px; color: hsl(var(--muted-foreground)); white-space: nowrap; }
+    .td-session { font-family: monospace; font-size: 11px; color: hsl(var(--muted-foreground)); }
     .td-msg { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-    /* ── Badges ── */
-    .badge {
-      display: inline-block; padding: 3px 9px; border-radius: 12px;
-      font-size: 11px; font-weight: 700; white-space: nowrap;
+    #errorTable tbody tr { cursor: pointer; }
+    @media (max-width: 640px) {
+      .td-msg { max-width: none; white-space: normal; }
     }
+
+    /* ── Step / error-code badge colors (categorical, page-specific) ── */
     .badge-step-request_validation { background: #bee3f8; color: #2b6cb0; }
     .badge-step-image_download      { background: #feebc8; color: #c05621; }
     .badge-step-image_validation    { background: #feebc8; color: #c05621; }
@@ -161,84 +100,57 @@
     .badge-code-PARSE_FAILED          { background: #e9d8fd; color: #6b46c1; }
     .badge-code-INCOMPLETE_RESULT     { background: #fefcbf; color: #975a16; }
     .badge-code-VIOLATION_CHECK_FAILED{ background: #fed7e2; color: #c53030; }
-    .badge-code-UNKNOWN_ERROR         { background: #edf2f7; color: #4a5568; }
+    .badge-code-UNKNOWN_ERROR         { background: hsl(var(--secondary)); color: hsl(var(--secondary-foreground)); }
 
     /* ── Pagination ── */
     .pagination {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 20px; border-top: 1px solid #edf2f7; font-size: 13px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+      padding: 14px 20px; border-top: 1px solid hsl(var(--border)); font-size: 13px;
     }
-    .pagination-info { color: #718096; }
-    .pagination-btns { display: flex; gap: 6px; }
+    .pagination-info { color: hsl(var(--muted-foreground)); }
+    .pagination-btns { display: flex; gap: 6px; flex-wrap: wrap; }
     .page-btn {
-      width: 32px; height: 32px; border-radius: 6px; border: 1.5px solid #e2e8f0;
-      background: white; font-size: 13px; cursor: pointer; display: flex;
+      width: 32px; height: 32px; border-radius: calc(var(--radius) - 4px); border: 1px solid hsl(var(--border));
+      background: hsl(var(--card)); font-size: 13px; cursor: pointer; display: flex;
       align-items: center; justify-content: center; transition: all .15s;
     }
-    .page-btn:hover:not(:disabled) { border-color: #667eea; color: #667eea; }
-    .page-btn.current { background: #667eea; color: white; border-color: #667eea; }
+    .page-btn:hover:not(:disabled) { border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
+    .page-btn.current { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); border-color: hsl(var(--primary)); }
     .page-btn:disabled { opacity: .4; cursor: not-allowed; }
 
     /* ── Empty / Loading ── */
-    .empty-state {
-      text-align: center; padding: 60px 20px; color: #a0aec0;
-    }
+    .empty-state { text-align: center; padding: 60px 20px; color: hsl(var(--muted-foreground)); }
     .empty-icon { font-size: 48px; margin-bottom: 12px; }
     .empty-state p { font-size: 15px; }
-    .loading { text-align: center; padding: 40px; color: #a0aec0; font-size: 14px; }
-    .spinner {
-      display: inline-block; width: 24px; height: 24px; border: 3px solid #e2e8f0;
-      border-top-color: #667eea; border-radius: 50%; animation: spin .7s linear infinite;
-      vertical-align: middle; margin-right: 8px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading { text-align: center; padding: 40px; color: hsl(var(--muted-foreground)); font-size: 14px; }
+    .loading .spinner { display: inline-block; vertical-align: middle; margin-right: 8px; }
 
-    /* ── Detail Modal ── */
-    .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,.45);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 1000; padding: 20px;
-      opacity: 0; pointer-events: none; transition: opacity .2s;
-    }
-    .modal-overlay.open { opacity: 1; pointer-events: all; }
-    .modal {
-      background: white; border-radius: 16px; width: 100%; max-width: 720px;
-      max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;
-      transform: translateY(20px); transition: transform .2s;
-    }
-    .modal-overlay.open .modal { transform: none; }
-    .modal-header {
-      padding: 20px 24px; border-bottom: 1px solid #edf2f7;
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .modal-header h2 { font-size: 16px; font-weight: 700; color: #2d3748; }
-    .modal-close {
-      width: 32px; height: 32px; border: none; background: #edf2f7;
-      border-radius: 8px; font-size: 18px; cursor: pointer; display: flex;
-      align-items: center; justify-content: center; color: #4a5568;
-    }
-    .modal-close:hover { background: #e2e8f0; }
-    .modal-body { padding: 24px; overflow-y: auto; flex: 1; }
+    /* ── Detail Modal (uses shared dialog-*; hidden until .open) ── */
+    #modalOverlay.dialog-overlay { opacity: 0; pointer-events: none; transition: opacity .2s; }
+    #modalOverlay.dialog-overlay.open { opacity: 1; pointer-events: all; }
+    #modalOverlay .dialog-content { max-width: 720px; transform: translateY(20px); transition: transform .2s; }
+    #modalOverlay.open .dialog-content { transform: none; }
     .detail-section { margin-bottom: 20px; }
-    .detail-section h4 { font-size: 12px; font-weight: 700; color: #a0aec0; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+    .detail-section h4 { font-size: 12px; font-weight: 700; color: hsl(var(--muted-foreground)); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
     .detail-grid { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; font-size: 13px; }
-    .detail-key { color: #718096; font-weight: 600; padding: 4px 0; }
-    .detail-val { color: #2d3748; padding: 4px 0; word-break: break-all; }
+    @media (max-width: 480px) { .detail-grid { grid-template-columns: 1fr; } }
+    .detail-key { color: hsl(var(--muted-foreground)); font-weight: 600; padding: 4px 0; }
+    .detail-val { padding: 4px 0; word-break: break-all; }
     pre.stack {
-      background: #1a202c; color: #e2e8f0; padding: 16px; border-radius: 8px;
+      background: #1a202c; color: #e2e8f0; padding: 16px; border-radius: calc(var(--radius) - 2px);
       font-size: 11px; line-height: 1.6; overflow-x: auto; white-space: pre-wrap; word-break: break-all;
     }
     .context-box {
-      background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+      background: hsl(var(--secondary)); border: 1px solid hsl(var(--border)); border-radius: calc(var(--radius) - 2px);
       padding: 14px; font-size: 12px; font-family: monospace; line-height: 1.7;
-      color: #2d3748; overflow-x: auto; white-space: pre-wrap; word-break: break-all;
+      overflow-x: auto; white-space: pre-wrap; word-break: break-all;
     }
 
     /* ── Toast ── */
     .toast {
-      position: fixed; bottom: 24px; right: 24px;
-      background: #2d3748; color: white; padding: 10px 20px;
-      border-radius: 10px; font-size: 13px; z-index: 2000;
+      position: fixed; bottom: 24px; right: 24px; left: 24px; max-width: 360px; margin-left: auto;
+      background: hsl(222 20% 18%); color: white; padding: 10px 20px;
+      border-radius: calc(var(--radius) - 2px); font-size: 13px; z-index: 2000;
       opacity: 0; transform: translateY(10px); transition: all .3s;
       pointer-events: none;
     }
@@ -247,19 +159,15 @@
     /* ── Auto-refresh indicator ── */
     .refresh-dot {
       display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-      background: #68d391; margin-right: 6px; vertical-align: middle;
+      background: hsl(var(--success)); margin-right: 6px; vertical-align: middle;
       animation: pulse 1.5s ease-in-out infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: .3; }
     }
   </style>
 </head>
 <body>
 
 <!-- Page Toolbar -->
-<div style="max-width:1400px;margin:0 auto;padding:16px 20px 0;display:flex;align-items:center;gap:10px;justify-content:flex-end">
+<div class="page-toolbar">
   <button class="btn btn-secondary" id="btnAutoRefresh" onclick="toggleAutoRefresh()">自動更新</button>
   <button class="btn btn-secondary" onclick="exportCSV()">匯出 CSV</button>
 </div>
@@ -268,28 +176,28 @@
 
   <!-- Stats Bar -->
   <div class="stats-bar" id="statsBar">
-    <div class="stat-card"><div class="stat-label">今日錯誤總數</div><div class="stat-value" id="statTotal">—</div></div>
-    <div class="stat-card red"><div class="stat-label">硬錯誤（例外）</div><div class="stat-value" id="statHard">—</div></div>
-    <div class="stat-card yellow"><div class="stat-label">OCR 問題</div><div class="stat-value" id="statOcr">—</div></div>
-    <div class="stat-card orange"><div class="stat-label">結果不完整</div><div class="stat-value" id="statIncomplete">—</div></div>
-    <div class="stat-card green"><div class="stat-label">查詢的日期範圍</div><div class="stat-value" id="statDays" style="font-size:14px;padding-top:6px">—</div></div>
+    <div class="stat-card card"><div class="stat-label">今日錯誤總數</div><div class="stat-value" id="statTotal">—</div></div>
+    <div class="stat-card card red"><div class="stat-label">硬錯誤（例外）</div><div class="stat-value" id="statHard">—</div></div>
+    <div class="stat-card card yellow"><div class="stat-label">OCR 問題</div><div class="stat-value" id="statOcr">—</div></div>
+    <div class="stat-card card orange"><div class="stat-label">結果不完整</div><div class="stat-value" id="statIncomplete">—</div></div>
+    <div class="stat-card card green"><div class="stat-label">查詢的日期範圍</div><div class="stat-value" id="statDays" style="font-size:14px;padding-top:6px">—</div></div>
   </div>
 
   <!-- Filter Panel -->
-  <div class="filter-panel">
+  <div class="filter-panel card">
     <h3>篩選條件</h3>
     <div class="filter-grid">
-      <div class="filter-group">
-        <label>開始日期</label>
-        <input type="date" id="fStartDate">
+      <div class="filter-group field">
+        <label class="label">開始日期</label>
+        <input type="date" id="fStartDate" class="input">
       </div>
-      <div class="filter-group">
-        <label>結束日期</label>
-        <input type="date" id="fEndDate">
+      <div class="filter-group field">
+        <label class="label">結束日期</label>
+        <input type="date" id="fEndDate" class="input">
       </div>
-      <div class="filter-group">
-        <label>失敗步驟</label>
-        <select id="fStep">
+      <div class="filter-group field">
+        <label class="label">失敗步驟</label>
+        <select id="fStep" class="select">
           <option value="">全部步驟</option>
           <option value="request_validation">request_validation（請求驗證）</option>
           <option value="image_download">image_download（圖片下載）</option>
@@ -301,9 +209,9 @@
           <option value="violation_check">violation_check（違規查詢）</option>
         </select>
       </div>
-      <div class="filter-group">
-        <label>錯誤代碼</label>
-        <select id="fErrorCode">
+      <div class="filter-group field">
+        <label class="label">錯誤代碼</label>
+        <select id="fErrorCode" class="select">
           <option value="">全部代碼</option>
           <option value="VALIDATION_ERROR">VALIDATION_ERROR</option>
           <option value="DOWNLOAD_FAILED">DOWNLOAD_FAILED</option>
@@ -318,20 +226,20 @@
           <option value="UNKNOWN_ERROR">UNKNOWN_ERROR</option>
         </select>
       </div>
-      <div class="filter-group">
-        <label>API 端點</label>
-        <select id="fEndpoint">
+      <div class="filter-group field">
+        <label class="label">API 端點</label>
+        <select id="fEndpoint" class="select">
           <option value="">全部端點</option>
           <option value="/api/verify/url">/api/verify/url</option>
           <option value="/api/verify/upload">/api/verify/upload</option>
           <option value="/api/check-violation">/api/check-violation</option>
         </select>
       </div>
-      <div class="filter-group">
-        <label>Session ID</label>
-        <input type="text" id="fSessionId" placeholder="貼上 sessionId...">
+      <div class="filter-group field">
+        <label class="label">Session ID</label>
+        <input type="text" id="fSessionId" class="input" placeholder="貼上 sessionId...">
       </div>
-      <div class="filter-group" style="align-self:end">
+      <div class="filter-group field" style="align-self:end">
         <div class="filter-actions">
           <button class="btn btn-primary" onclick="applyFilters()">查詢</button>
           <button class="btn btn-secondary" onclick="resetFilters()">清除</button>
@@ -342,24 +250,24 @@
 
   <!-- Breakdown Charts -->
   <div class="breakdown-row" id="breakdownRow" style="display:none">
-    <div class="breakdown-card">
+    <div class="breakdown-card card">
       <h3>依步驟分布</h3>
       <div id="byStep"></div>
     </div>
-    <div class="breakdown-card">
+    <div class="breakdown-card card">
       <h3>依錯誤代碼分布</h3>
       <div id="byErrorCode"></div>
     </div>
   </div>
 
   <!-- Table -->
-  <div class="table-panel">
+  <div class="table-panel card">
     <div class="table-toolbar">
       <h3 id="tableTitle">錯誤紀錄</h3>
       <span class="table-meta" id="tableMeta"></span>
     </div>
-    <div class="table-wrap">
-      <table id="errorTable">
+    <div class="table-wrapper" style="border:none;border-radius:0;">
+      <table id="errorTable" class="table table-stack">
         <thead>
           <tr>
             <th>時間</th>
@@ -384,13 +292,13 @@
 </div>
 
 <!-- Detail Modal -->
-<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
-  <div class="modal">
-    <div class="modal-header">
-      <h2>錯誤詳細資訊</h2>
-      <button class="modal-close" onclick="closeModalBtn()">✕</button>
+<div class="dialog-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="dialog-content">
+    <div class="dialog-header">
+      <h2 class="dialog-title">錯誤詳細資訊</h2>
+      <button class="dialog-close" onclick="closeModalBtn()">✕</button>
     </div>
-    <div class="modal-body" id="modalBody"></div>
+    <div class="dialog-body" id="modalBody"></div>
   </div>
 </div>
 
@@ -461,7 +369,7 @@
   function renderBreakdown(containerId, data, total) {
     const el = document.getElementById(containerId);
     const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]);
-    if (!sorted.length) { el.innerHTML = '<div style="color:#a0aec0;font-size:13px;padding:8px 0">（無資料）</div>'; return; }
+    if (!sorted.length) { el.innerHTML = '<div class="text-muted text-sm" style="padding:8px 0">（無資料）</div>'; return; }
     el.innerHTML = sorted.map(([label, cnt]) => {
       const pct = total ? Math.round(cnt / total * 100) : 0;
       return `
@@ -543,12 +451,12 @@
       const ep  = escHtml(r.endpoint || '');
       const sid = r.sessionId ? r.sessionId.slice(0, 8) + '…' : '—';
       return `<tr onclick="openModal(${i})">
-        <td class="td-time">${ts}</td>
-        <td>${stepBadge}</td>
-        <td>${codeBadge}</td>
-        <td class="td-msg" title="${msg}">${msg}</td>
-        <td style="font-size:12px;color:#718096">${ep}</td>
-        <td class="td-session" title="${r.sessionId || ''}">${sid}</td>
+        <td class="td-time" data-label="時間">${ts}</td>
+        <td data-label="步驟">${stepBadge}</td>
+        <td data-label="錯誤代碼">${codeBadge}</td>
+        <td class="td-msg" data-label="訊息" title="${msg}">${msg}</td>
+        <td data-label="端點" class="text-xs text-muted">${ep}</td>
+        <td class="td-session" data-label="Session ID" title="${r.sessionId || ''}">${sid}</td>
       </tr>`;
     }).join('');
   }
@@ -568,11 +476,11 @@
     html += `<button class="page-btn" onclick="loadErrors(${page-1})" ${page===0?'disabled':''}>‹</button>`;
     const start = Math.max(0, page - 2);
     const end   = Math.min(totalPages - 1, page + 2);
-    if (start > 0) html += `<button class="page-btn" onclick="loadErrors(0)">1</button>${start>1?'<span style="padding:0 4px;color:#a0aec0">…</span>':''}`;
+    if (start > 0) html += `<button class="page-btn" onclick="loadErrors(0)">1</button>${start>1?'<span style="padding:0 4px;color:hsl(var(--muted-foreground))">…</span>':''}`;
     for (let i = start; i <= end; i++) {
       html += `<button class="page-btn${i===page?' current':''}" onclick="loadErrors(${i})">${i+1}</button>`;
     }
-    if (end < totalPages - 1) html += `${end<totalPages-2?'<span style="padding:0 4px;color:#a0aec0">…</span>':''}<button class="page-btn" onclick="loadErrors(${totalPages-1})">${totalPages}</button>`;
+    if (end < totalPages - 1) html += `${end<totalPages-2?'<span style="padding:0 4px;color:hsl(var(--muted-foreground))">…</span>':''}<button class="page-btn" onclick="loadErrors(${totalPages-1})">${totalPages}</button>`;
     html += `<button class="page-btn" onclick="loadErrors(${page+1})" ${page===totalPages-1?'disabled':''}>›</button>`;
     btns.innerHTML = html;
   }
