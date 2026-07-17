@@ -1161,6 +1161,20 @@
         </div>
     </div>
 
+    <!-- 重置審核 確認 Modal -->
+    <div class="modal" id="resetConfirmModal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">⚠️ 確認重置審核</div>
+            <div class="modal-body" id="resetModalBody">
+                <!-- 內容由 JS 動態生成 -->
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-secondary" onclick="closeResetModal()">取消</button>
+                <button class="modal-btn modal-btn-primary" style="background: hsl(var(--destructive));" onclick="confirmResetCertificate()">確認重置</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // 環境配置
         const ENV_CONFIG = {
@@ -1933,6 +1947,7 @@
 
             tableBody.innerHTML = documentList.map((doc, index) => {
                 const idCardFront = doc.rentalCertificates.find(cert => cert.certificateType === 'ID_CARD_FRONT');
+                const hasPassport = doc.rentalCertificates.some(cert => cert.certificateType === 'PASSPORT_FRONT');
                 const statusBadge = getStatusBadge(idCardFront?.status);
                 const uploadTime = formatDate(doc.certificateLastUploadAt);
 
@@ -1947,6 +1962,11 @@
                             <button class="action-btn" onclick="reviewDocument(${index})">
                                 🔍 審核證件
                             </button>
+                            ${hasPassport ? `
+                                <button class="action-btn" style="background: hsl(var(--destructive)); margin-left: 6px;" onclick="resetCertificate(${index})">
+                                    🔄 重置審核
+                                </button>
+                            ` : ''}
                         </td>
                     </tr>
                 `;
@@ -2109,6 +2129,84 @@
                     <div style="color:hsl(var(--destructive)); padding:20px; text-align:center;">
                         ⚠️ 辨識失敗: ${error.message}
                     </div>`;
+            }
+        }
+
+        let pendingResetDoc = null;
+
+        function resetCertificate(index) {
+            const doc = documentList[index];
+            pendingResetDoc = doc;
+
+            const modalBody = document.getElementById('resetModalBody');
+            modalBody.innerHTML = `
+                <div class="info-row">
+                    <div class="info-label">使用者名稱</div>
+                    <div class="info-value"><span>${doc.displayName || '-'}</span></div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">User ID</div>
+                    <div class="info-value">
+                        <input class="review-input" id="resetUserIdInput" value="${doc.userId}" readonly>
+                        <button class="copy-btn" onclick="copyToClipboard(document.getElementById('resetUserIdInput').value, this)">複製</button>
+                    </div>
+                </div>
+                <div class="error-message" style="margin-top: 16px; margin-bottom: 0;">
+                    ⚠️ 請複製 User ID 並記得發送推播通知
+                </div>
+            `;
+            document.getElementById('resetConfirmModal').classList.add('active');
+        }
+
+        function closeResetModal() {
+            document.getElementById('resetConfirmModal').classList.remove('active');
+            pendingResetDoc = null;
+        }
+
+        async function confirmResetCertificate() {
+            if (!pendingResetDoc) return;
+            const doc = pendingResetDoc;
+            const config = ENV_CONFIG[currentEnv];
+
+            try {
+                const response = await fetch(config.graphqlUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                        'x-api-key': config.apiKey
+                    },
+                    body: JSON.stringify({
+                        operationName: 'ResetCertificate',
+                        variables: {
+                            input: {
+                                organization: doc.organization,
+                                userId: doc.userId
+                            }
+                        },
+                        query: `mutation ResetCertificate($input: ResetCertificateInput!) {
+                            RentalReviewMutation {
+                                resetCertificate(input: $input) {
+                                    result
+                                }
+                            }
+                        }`
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.errors) {
+                    throw new Error(result.errors[0].message);
+                }
+
+                closeResetModal();
+                showSuccess(`已重置 ${doc.displayName || doc.userId} 的審核`);
+                await loadDocuments();
+
+            } catch (error) {
+                console.error('Reset certificate error:', error);
+                showError('重置失敗: ' + error.message);
             }
         }
 
